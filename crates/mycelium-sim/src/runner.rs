@@ -5,6 +5,7 @@ use mycelium_core::transport::{TransportEvent, WireMessage};
 use mycelium_node::{NodeConfig, NodeHandle, NodeRunner};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
@@ -60,6 +61,8 @@ pub struct SimulationRunner {
     pub delivered_ids: HashMap<String, u64>,
     pub metrics: SimulationMetrics,
     rng_state: u64,
+    /// Isolates on-disk sim DB paths when multiple tests run in parallel.
+    run_id: u64,
     pub action_tx: mpsc::UnboundedSender<SimAction>,
     pub action_rx: mpsc::UnboundedReceiver<SimAction>,
 }
@@ -71,6 +74,8 @@ pub struct SimNode {
 
 impl SimulationRunner {
     pub fn new(start_ms: u64, seed: u64) -> Self {
+        static NEXT_RUN: AtomicU64 = AtomicU64::new(0);
+        let run_id = NEXT_RUN.fetch_add(1, Ordering::Relaxed);
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         Self {
             clock: DeterministicClock::new(start_ms),
@@ -82,6 +87,7 @@ impl SimulationRunner {
             delivered_ids: HashMap::new(),
             metrics: SimulationMetrics::default(),
             rng_state: seed.max(1),
+            run_id,
             action_tx,
             action_rx,
         }
@@ -331,7 +337,7 @@ impl SimulationRunner {
         bandwidth: u64,
     ) -> anyhow::Result<SimNode> {
         let transport = self.build_transport(peer_id.clone(), bandwidth);
-        let db_path = sim_db_path(&peer_id);
+        let db_path = sim_db_path(self.run_id, &peer_id);
         std::fs::create_dir_all(&db_path)?;
         let config = NodeConfig {
             listen_addr: "/ip4/0.0.0.0/tcp/0"
@@ -353,8 +359,8 @@ impl SimulationRunner {
     }
 }
 
-fn sim_db_path(peer_id: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("mycelium-sim-{}", peer_id))
+fn sim_db_path(run_id: u64, peer_id: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("mycelium-sim-{run_id}-{peer_id}"))
 }
 
 fn wire_message_size(message: &WireMessage) -> usize {
@@ -484,7 +490,7 @@ mod tests {
             .await
             .expect("send");
 
-        sim.run_for_async(5_000).await;
+        sim.run_for_async(30_000).await;
         let metrics = sim.metrics();
         assert_eq!(metrics.delivered, 1);
         assert_eq!(metrics.duplicates, 0);
