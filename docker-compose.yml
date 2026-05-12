@@ -1,0 +1,16 @@
+# Local / CI-style full Android build (Rust NDK + UniFFI + Gradle assembleDebug).
+# Requires Docker. First run downloads SDK/NDK and is slow.
+#
+#   docker compose --profile android build android-ci
+#
+# The release APK/AAB is inside the image under /src/android/app/build/outputs/...
+# Copy out the debug APK, for example:
+#   id=$(docker create mycelium-android-ci:local) && docker cp "$id":/src/android/app/build/outputs/apk/debug/app-debug.apk . && docker rm -v "$id"
+
+services:
+  android-ci:
+    profiles: ["android"]
+    build:
+      context: .
+      dockerfile: docker/android-ci/Dockerfile
+    image: mycelium-android-ci:local

@@ -1,0 +1,146 @@
+namespace mycelium {
+  void init_node(NodeConfig config);
+  void stop_node();
+  string local_peer_id();
+  sequence<string> known_peers();
+  NodeMetrics metrics();
+
+  void send_chat_direct(string to_peer, string body);
+  void send_chat_broadcast(string body);
+  sequence<ChatMessage> chat_history(string peer_id, u32 limit);
+
+  void post_bulletin(string scope, string title, string body, u64 ttl_secs);
+  sequence<BulletinPost> bulletins_for_scope(string scope);
+
+  void send_mail(string to_peer, string subject, string body);
+  sequence<MailMessage> mail_inbox(u32 limit);
+  sequence<MailMessage> mail_sent(u32 limit);
+  void mark_mail_read(string mail_id);
+
+  void set_display_name(string name);
+  string display_name();
+  void set_energy_state(EnergyState state);
+  void add_bootstrap_peer(string multiaddr);
+  void set_event_callback(NodeEventCallback callback);
+
+  string wallet_address();
+  WalletBalance wallet_balance();
+  void send_transaction(string to_address, u64 amount_muon, string? memo);
+  sequence<TxInfo> wallet_recent_transactions(u32 limit);
+  void request_faucet();
+
+  ConnectivityMode current_connectivity_mode();
+
+  HotWalletConfig get_hot_wallet_config();
+  void set_hot_wallet_config(HotWalletConfig config);
+  void set_cold_wallet_address(string? address);
+  HotWalletStatus hot_wallet_status();
+
+  string build_payment_request_uri(string to_address, u64 amount_muon, string? memo);
+  PaymentRequestData? parse_payment_request_uri(string uri);
+};
+
+dictionary WalletBalance {
+  u64 confirmed_muon;
+  u64 pending_muon;
+};
+
+dictionary TxInfo {
+  string id;
+  string from_address;
+  string to_address;
+  u64 amount_muon;
+  u64 fee_muon;
+  u64 timestamp_ms;
+  string? memo;
+  u32 witness_count;
+  boolean confirmed;
+};
+
+dictionary NodeConfig {
+  string db_path;
+  string listen_addr;
+  string display_name;
+  sequence<string> bootstrap_peers;
+};
+
+dictionary NodeMetrics {
+  u64 messages_forwarded;
+  u64 messages_dropped_ttl;
+  u64 messages_dropped_queue;
+  u64 messages_delivered_local;
+  u64 pending_queue_size;
+  u64 seen_cache_size;
+};
+
+dictionary HotWalletConfig {
+  u64 max_cache_muon;
+  u64 refill_threshold_muon;
+  u64 refill_amount_muon;
+  string? cold_wallet_address;
+};
+
+dictionary HotWalletStatus {
+  u64 confirmed_muon;
+  u64 pending_muon;
+  u64 max_cache_muon;
+  boolean auto_refill_enabled;
+  boolean needs_refill;
+  ConnectivityMode connectivity;
+};
+
+dictionary PaymentRequestData {
+  string to_address;
+  u64 amount_muon;
+  string? memo;
+  u64? expires_at_ms;
+};
+
+dictionary ChatMessage {
+  string id;
+  string from_peer;
+  string from_display_name;
+  string body;
+  u64 timestamp_ms;
+};
+
+dictionary BulletinPost {
+  string id;
+  string from_display_name;
+  string title;
+  string body;
+  string scope;
+  u64 timestamp_ms;
+  u64 expires_at_ms;
+};
+
+dictionary MailMessage {
+  string id;
+  string from_peer;
+  string from_display_name;
+  string to_peer;
+  string subject;
+  string body;
+  u64 timestamp_ms;
+  boolean is_read;
+};
+
+enum EnergyState {
+  "Active",
+  "Intermittent",
+  "Passive",
+};
+
+enum ConnectivityMode {
+  "Internet",
+  "MeshOnly",
+};
+
+callback interface NodeEventCallback {
+  void on_peer_discovered(string peer_id);
+  void on_peer_lost(string peer_id);
+  void on_chat_received(ChatMessage message);
+  void on_mail_received(MailMessage message);
+  void on_bulletin_received(BulletinPost post);
+  void on_connectivity_changed(ConnectivityMode mode);
+};

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mycelium",
+  "version": "0.1.0",
+  "identifier": "network.mycelium.desktop",
+  "build": {
+    "frontendDist": "ui/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "cd ui && npm run dev",
+    "beforeBuildCommand": "cd ui && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Mycelium",
+        "width": 1100,
+        "height": 720,
+        "minWidth": 800,
+        "minHeight": 600,
+        "decorations": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [],
+    "category": "Network",
+    "shortDescription": "Offline mesh network - chat, mail, bulletin board, wallet",
+    "longDescription": "Mycelium is a decentralized delay-tolerant network. Messages travel between devices directly, without internet infrastructure. Includes mesh chat, store-and-forward mail, a bulletin board, and MeshCoin payments.",
+    "windows": {
+      "wix": { "language": "en-US" }
+    },
+    "macOS": {
+      "signingIdentity": null,
+      "minimumSystemVersion": "12.0"
+    },
+    "linux": {
+      "deb": { "depends": ["libwebkit2gtk-4.1-0", "libssl-dev"] },
+      "appimage": { "bundleMediaFramework": true }
+    }
+  }
+}

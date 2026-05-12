@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Мицелий</string>
+    <string name="app_tagline">Автономная сеть</string>
+    <string name="nav_chat">Чат</string>
+    <string name="nav_bulletin">Доска</string>
+    <string name="nav_mail">Почта</string>
+    <string name="nav_peers">Узлы</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="chat_title">Сетевой чат</string>
+    <string name="chat_message_hint">Сообщение…</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_no_conversations">Нет разговоров.\nОтсканируйте QR-код для подключения.</string>
+    <string name="bulletin_title">Доска объявлений</string>
+    <string name="bulletin_new_post">Новое объявление</string>
+    <string name="mail_title">Сетевая почта</string>
+    <string name="mail_inbox">Входящие</string>
+    <string name="mail_sent">Отправленные</string>
+    <string name="wallet_title">Кошелёк</string>
+    <string name="wallet_balance">Баланс</string>
+    <string name="wallet_send">Отправить</string>
+    <string name="wallet_receive">Получить</string>
+    <string name="notification_running">Сеть Мицелий активна</string>
+    <string name="settings_title">Настройки</string>
+    <string name="peers_title">Сеть</string>
+    <string name="peers_my_id">Мой идентификатор</string>
+    <string name="peers_scan">Сканировать QR</string>
+    <string name="connectivity_internet">Интернет</string>
+    <string name="connectivity_mesh">Только mesh</string>
+    <string name="connectivity_switching">Переход в mesh…</string>
+    <string name="wallet_hot_wallet">Горячий кошелёк</string>
+    <string name="wallet_cache_limit">Лимит кэша: %1$s</string>
+    <string name="wallet_auto_refill">Авто-пополнение с холодного кошелька</string>
+    <string name="wallet_refilling">Пополнение…</string>
+    <string name="wallet_cold_wallet_address">Адрес холодного кошелька</string>
+    <string name="wallet_cold_wallet_hint">mxc1… (основной кошелёк)</string>
+    <string name="wallet_set_cold_wallet">Сохранить cold wallet</string>
+    <string name="wallet_memo_hint">Мемо (необязательно)</string>
+    <string name="wallet_scan_mxcpay">Сканировать mxcpay QR</string>
+    <string name="wallet_share_request">Поделиться запросом</string>
+    <string name="wallet_payment_qr">QR оплаты</string>
+</resources>

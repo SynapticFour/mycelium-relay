@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">Mycelium</string>
+    <string name="app_tagline">Offline mesh network</string>
+
+    <!-- Navigation -->
+    <string name="nav_chat">Chat</string>
+    <string name="nav_bulletin">Board</string>
+    <string name="nav_mail">Mail</string>
+    <string name="nav_peers">Peers</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_wallet">Wallet</string>
+
+    <!-- Chat -->
+    <string name="chat_title">Mesh Chat</string>
+    <string name="chat_new_conversation">New conversation</string>
+    <string name="chat_enter_peer_id">Enter Peer ID</string>
+    <string name="chat_message_hint">Message…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_broadcast">Broadcast to all</string>
+    <string name="chat_online">Online</string>
+    <string name="chat_offline">Offline</string>
+    <string name="chat_no_conversations">No conversations yet.\nScan a QR code to connect.</string>
+
+    <!-- Bulletin -->
+    <string name="bulletin_title">Bulletin Board</string>
+    <string name="bulletin_new_post">New post</string>
+    <string name="bulletin_scope_hint">Scope (e.g. city/berlin)</string>
+    <string name="bulletin_title_hint">Title</string>
+    <string name="bulletin_body_hint">Message</string>
+    <string name="bulletin_expires">Expires in %1$s</string>
+    <string name="bulletin_post">Post</string>
+    <string name="bulletin_empty">No posts in this scope yet.</string>
+
+    <!-- Mail -->
+    <string name="mail_title">Mesh Mail</string>
+    <string name="mail_inbox">Inbox</string>
+    <string name="mail_sent">Sent</string>
+    <string name="mail_compose">Compose</string>
+    <string name="mail_to_hint">To (Peer ID)</string>
+    <string name="mail_subject_hint">Subject</string>
+    <string name="mail_body_hint">Body</string>
+    <string name="mail_send">Send</string>
+    <string name="mail_unread">unread</string>
+    <string name="mail_empty_inbox">Your inbox is empty.</string>
+
+    <!-- Peers -->
+    <string name="peers_title">Network</string>
+    <string name="peers_my_id">My Peer ID</string>
+    <string name="peers_share">Share my ID</string>
+    <string name="peers_scan">Scan QR</string>
+    <string name="peers_connected">%1$d connected</string>
+    <string name="peers_forwarded">Forwarded</string>
+    <string name="peers_delivered">Delivered</string>
+    <string name="peers_queue">Queue</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_display_name">Display Name</string>
+    <string name="settings_display_name_hint">Your name in the network</string>
+    <string name="settings_energy">Energy Mode</string>
+    <string name="settings_energy_active">Active (full forwarding)</string>
+    <string name="settings_energy_intermittent">Intermittent (medium)</string>
+    <string name="settings_energy_passive">Passive (receive only)</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system">System default</string>
+    <string name="settings_store_size">Stored messages</string>
+    <string name="settings_clear_store">Clear old messages</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_open_wallet">Open wallet</string>
+
+    <!-- Wallet (MeshCoin) -->
+    <string name="wallet_title">Wallet</string>
+    <string name="wallet_balance">Balance</string>
+    <string name="wallet_send">Send</string>
+    <string name="wallet_receive">Receive</string>
+    <string name="wallet_address">My Address</string>
+    <string name="wallet_amount_hint">Amount (MXC)</string>
+    <string name="wallet_to_hint">To (address or Peer ID)</string>
+    <string name="wallet_fee">Network fee</string>
+    <string name="wallet_tx_pending">Transaction pending (offline)</string>
+    <string name="wallet_tx_sent">Transaction broadcast</string>
+    <string name="wallet_history">Transaction history</string>
+    <string name="wallet_no_txs">No transactions yet.</string>
+    <string name="wallet_pending">pending confirmation</string>
+    <string name="wallet_faucet">Get test MXC</string>
+    <string name="wallet_status_confirmed">Confirmed</string>
+    <string name="wallet_status_witnesses">%1$d/3 witnesses</string>
+    <string name="wallet_send_title">Send MXC</string>
+    <string name="wallet_receive_title">Your address</string>
+    <string name="wallet_dismiss">Close</string>
+    <string name="wallet_memo_hint">Memo (optional)</string>
+    <string name="wallet_scan_mxcpay">Scan mxcpay QR</string>
+    <string name="wallet_share_request">Share request</string>
+    <string name="wallet_payment_qr">Payment QR code</string>
+
+    <string name="connectivity_internet">Internet</string>
+    <string name="connectivity_mesh">Mesh only</string>
+    <string name="connectivity_switching">Switching to mesh…</string>
+
+    <string name="wallet_hot_wallet">Hot wallet</string>
+    <string name="wallet_cache_limit">Cache limit: %1$s</string>
+    <string name="wallet_auto_refill">Auto-refill from cold wallet</string>
+    <string name="wallet_refilling">Refilling…</string>
+    <string name="wallet_cold_wallet_address">Cold wallet address</string>
+    <string name="wallet_cold_wallet_hint">mxc1… (your main wallet)</string>
+    <string name="wallet_set_cold_wallet">Set cold wallet</string>
+
+    <!-- Service notification -->
+    <string name="notification_channel_name">Mycelium Network</string>
+    <string name="notification_running">Mesh network active</string>
+    <string name="notification_peers">%1$d peers connected</string>
+
+    <!-- Errors -->
+    <string name="error_invalid_peer_id">Invalid Peer ID format</string>
+    <string name="error_message_too_long">Message too long (max 10 KB)</string>
+    <string name="error_network">Network error – message queued</string>
+</resources>

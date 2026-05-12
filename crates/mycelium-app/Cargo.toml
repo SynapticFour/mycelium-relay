@@ -1,0 +1,27 @@
+[package]
+name = "mycelium-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+axum = "0.7"
+bincode.workspace = true
+blake3.workspace = true
+chrono.workspace = true
+mycelium-core = { path = "../mycelium-core" }
+mycelium-coin = { path = "../mycelium-coin" }
+mycelium-node = { path = "../mycelium-node" }
+serde.workspace = true
+serde_json.workspace = true
+sled.workspace = true
+tokio.workspace = true
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

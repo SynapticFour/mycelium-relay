@@ -1,0 +1,231 @@
+# Manual release: cross-compile Rust → AAB → Google Play.
+#
+# Required repository secrets (configure in GitHub → Settings → Secrets):
+#   ANDROID_KEYSTORE_BASE64   — base64-encoded .jks
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS
+#   ANDROID_KEY_PASSWORD
+#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON — Play Developer API service account JSON (plain text)
+#
+# Optional: tune NDK / packages if you bump compileSdk.
+
+name: Android Release → Google Play
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Play Store Track (internal / alpha / beta / production)"
+        required: true
+        default: "internal"
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      release_notes:
+        description: "Release notes (English, max 500 chars for Play whatsnew)"
+        required: false
+        default: "Bug fixes and improvements"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-rust:
+    name: Cross-compile Rust → Android targets
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --version "^3"
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: rust-android-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: rust-android-
+
+      - name: Set up Android SDK (platform, build-tools, NDK)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            tools
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+            ndk;26.1.10909125
+
+      - name: Configure NDK for cargo-ndk
+        run: echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/26.1.10909125" >> "$GITHUB_ENV"
+
+      - name: Build libmycelium_ffi.so for all targets
+        run: |
+          cargo ndk \
+            -t aarch64-linux-android \
+            -t armv7-linux-androideabi \
+            -t x86_64-linux-android \
+            -o android/rust-build \
+            build --release -p mycelium-ffi
+
+      - name: Generate UniFFI Kotlin bindings
+        run: |
+          cargo run -p mycelium-ffi --bin uniffi-bindgen -- generate \
+            crates/mycelium-ffi/src/mycelium.udl \
+            --language kotlin \
+            --out-dir android/uniffi-bindings/src/main/kotlin/
+
+      - name: Fix UniFFI Kotlin newline (no ktlint in CI)
+        run: |
+          perl -0777 -pi -e 's/\}\s+fun `addBootstrapPeer`/}\n\nfun `addBootstrapPeer`/' \
+            android/uniffi-bindings/src/main/kotlin/uniffi/mycelium/mycelium.kt
+
+      - name: Upload .so artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-android-libs
+          path: android/rust-build/
+          retention-days: 1
+
+      - name: Upload UniFFI bindings
+        uses: actions/upload-artifact@v4
+        with:
+          name: uniffi-bindings
+          path: android/uniffi-bindings/src/main/kotlin/
+          retention-days: 1
+
+  build-apk:
+    name: Build & Sign Android AAB
+    runs-on: ubuntu-22.04
+    needs: build-rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Set up Android SDK (for Gradle AGP)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            tools
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+
+      - name: Download Rust .so files
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-android-libs
+          path: android/rust-build/
+
+      - name: Download UniFFI bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: uniffi-bindings
+          path: android/uniffi-bindings/src/main/kotlin/
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+
+      - name: Write Play whatsnew (en-US, max 500 chars)
+        run: |
+          mkdir -p android/whatsnew/en-US
+          echo "${{ github.event.inputs.release_notes }}" | head -c 500 > android/whatsnew/en-US/whatsnew
+
+      - name: Decode keystore from secret
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "ANDROID_KEYSTORE_BASE64 is not set"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > android/keystore.jks
+
+      - name: Build release AAB (Android App Bundle)
+        working-directory: android
+        run: |
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="${{ github.workspace }}/android/keystore.jks" \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7
+
+      - name: Upload R8 mapping
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-mapping
+          path: android/app/build/outputs/mapping/release/mapping.txt
+          retention-days: 7
+
+      - name: Upload Play whatsnew directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-whatsnew
+          path: android/whatsnew/
+          retention-days: 7
+
+  deploy-play:
+    name: Deploy to Google Play (${{ github.event.inputs.track }})
+    runs-on: ubuntu-22.04
+    needs: build-apk
+    steps:
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab
+          path: play-upload
+
+      - name: Download R8 mapping
+        uses: actions/download-artifact@v4
+        with:
+          name: release-mapping
+          path: play-upload
+
+      - name: Download whatsnew (en-US)
+        uses: actions/download-artifact@v4
+        with:
+          name: play-whatsnew
+          path: whatsnew
+
+      - name: Deploy to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: network.mycelium.app
+          releaseFiles: play-upload/app-release.aab
+          track: ${{ github.event.inputs.track }}
+          status: completed
+          releaseName: ${{ github.ref_name }}
+          changesNotSentForReview: false
+          inAppUpdatePriority: 2
+          mappingFile: play-upload/mapping.txt
+          whatsNewDirectory: whatsnew

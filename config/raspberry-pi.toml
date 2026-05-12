@@ -1,0 +1,16 @@
+[node]
+listen_addr = "/ip4/0.0.0.0/tcp/7761"
+db_path = "/var/lib/mycelium"
+display_name = "pi-node"
+energy_state = "active"
+forwarding_interval_ms = 200
+sync_interval_secs = 10
+
+[node.bootstrap_peers]
+peers = [
+  "/ip4/<VPS-IP>/tcp/4001/p2p/12D3KooW...",
+]
+
+[pi]
+act_led = true
+status_display = false

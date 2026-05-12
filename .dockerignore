@@ -1,0 +1,10 @@
+target/
+.git/
+.cargo-home/
+**/.gradle/
+**/build/
+android/app/build/
+android/uniffi-bindings/build/
+android/rust-build/
+*.iml
+.idea/

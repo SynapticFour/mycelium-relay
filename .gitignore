@@ -1,0 +1,6 @@
+/target/
+/.cargo-home/
+/android/.gradle/
+/android/**/build/
+/android/keystore.jks
+/android/local.properties

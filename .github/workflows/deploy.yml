@@ -1,0 +1,28 @@
+name: Deploy Relay → Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/mycelium-relay/**'
+      - 'crates/mycelium-core/**'
+      - 'crates/mycelium-node/**'
+      - 'deploy/relay/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Dockerfile.relay'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only --config deploy/relay/fly.toml --dockerfile Dockerfile.relay
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">菌丝网络</string>
+    <string name="app_tagline">离线网状网络</string>
+    <string name="nav_chat">聊天</string>
+    <string name="nav_bulletin">公告板</string>
+    <string name="nav_mail">邮件</string>
+    <string name="nav_peers">节点</string>
+    <string name="nav_settings">设置</string>
+    <string name="chat_title">网状聊天</string>
+    <string name="chat_message_hint">消息…</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_no_conversations">暂无对话。\n扫描二维码以连接。</string>
+    <string name="bulletin_title">公告板</string>
+    <string name="mail_inbox">收件箱</string>
+    <string name="mail_sent">已发送</string>
+    <string name="wallet_title">钱包</string>
+    <string name="wallet_balance">余额</string>
+    <string name="wallet_send">发送</string>
+    <string name="wallet_receive">接收</string>
+    <string name="notification_running">菌丝网络运行中</string>
+    <string name="settings_title">设置</string>
+    <string name="peers_title">网络</string>
+    <string name="connectivity_internet">互联网</string>
+    <string name="connectivity_mesh">仅网状</string>
+    <string name="connectivity_switching">正在切换到网状…</string>
+    <string name="wallet_hot_wallet">热钱包</string>
+    <string name="wallet_cache_limit">缓存上限：%1$s</string>
+    <string name="wallet_auto_refill">从冷钱包自动充值</string>
+    <string name="wallet_refilling">正在充值…</string>
+    <string name="wallet_cold_wallet_address">冷钱包地址</string>
+    <string name="wallet_cold_wallet_hint">mxc1…（主钱包）</string>
+    <string name="wallet_set_cold_wallet">设置冷钱包</string>
+    <string name="wallet_memo_hint">备注（可选）</string>
+    <string name="wallet_scan_mxcpay">扫描 mxcpay 二维码</string>
+    <string name="wallet_share_request">分享收款请求</string>
+    <string name="wallet_payment_qr">付款二维码</string>
+</resources>

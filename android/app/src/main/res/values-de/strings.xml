@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Myzelium</string>
+    <string name="app_tagline">Offline-Maschennetz</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_bulletin">Brett</string>
+    <string name="nav_mail">Post</string>
+    <string name="nav_peers">Knoten</string>
+    <string name="nav_settings">Einstellungen</string>
+    <string name="chat_title">Mesh-Chat</string>
+    <string name="chat_message_hint">Nachricht…</string>
+    <string name="chat_send">Senden</string>
+    <string name="chat_no_conversations">Keine Gespräche.\nQR-Code scannen zum Verbinden.</string>
+    <string name="bulletin_title">Schwarzes Brett</string>
+    <string name="mail_inbox">Eingang</string>
+    <string name="mail_sent">Gesendet</string>
+    <string name="wallet_title">Geldbeutel</string>
+    <string name="wallet_balance">Guthaben</string>
+    <string name="notification_running">Myzelium-Netz aktiv</string>
+    <string name="settings_title">Einstellungen</string>
+    <string name="peers_title">Netzwerk</string>
+    <string name="language_system">Systemsprache</string>
+    <string name="connectivity_internet">Internet</string>
+    <string name="connectivity_mesh">Nur Mesh</string>
+    <string name="connectivity_switching">Wechsel ins Mesh…</string>
+    <string name="wallet_hot_wallet">Hot Wallet</string>
+    <string name="wallet_cache_limit">Cache-Limit: %1$s</string>
+    <string name="wallet_auto_refill">Auto-Nachfüllung vom Cold Wallet</string>
+    <string name="wallet_refilling">Fülle auf…</string>
+    <string name="wallet_cold_wallet_address">Cold-Wallet-Adresse</string>
+    <string name="wallet_cold_wallet_hint">mxc1… (Haupt-Wallet)</string>
+    <string name="wallet_set_cold_wallet">Cold Wallet setzen</string>
+    <string name="wallet_memo_hint">Memo (optional)</string>
+    <string name="wallet_scan_mxcpay">mxcpay-QR scannen</string>
+    <string name="wallet_share_request">Zahlungslink teilen</string>
+    <string name="wallet_payment_qr">Zahlungs-QR</string>
+</resources>

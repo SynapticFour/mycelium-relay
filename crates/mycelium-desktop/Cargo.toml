@@ -1,0 +1,35 @@
+[package]
+name = "mycelium-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "mycelium_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "mycelium-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+bincode.workspace = true
+mycelium-core = { path = "../mycelium-core" }
+mycelium-node = { path = "../mycelium-node" }
+mycelium-app = { path = "../mycelium-app" }
+mycelium-coin = { path = "../mycelium-coin" }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+once_cell.workspace = true

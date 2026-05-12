@@ -1,0 +1,56 @@
+app = "mycelium-relay"
+primary_region = "fra"   # Frankfurt – zentral in Europa
+
+[build]
+# Relativ zu dieser fly.toml: Repo-Root (Docker-Build-Kontext = Arbeitsverzeichnis bei `fly deploy`)
+dockerfile = "../../Dockerfile.relay"
+
+[env]
+RUST_LOG = "info,mycelium_relay=debug"
+
+# HTTP Health-Check für Fly.io
+[[services]]
+protocol = "tcp"
+internal_port = 8080
+
+[[services.ports]]
+port = 80
+handlers = ["http"]
+
+[[services.ports]]
+port = 443
+handlers = ["tls", "http"]
+
+[[services.http_checks]]
+interval = "30s"
+timeout = "5s"
+grace_period = "10s"
+method = "GET"
+path = "/health"
+
+# libp2p TCP
+[[services]]
+protocol = "tcp"
+internal_port = 4001
+
+[[services.ports]]
+port = 4001
+
+# QUIC (UDP) – für NAT-Traversal
+[[services]]
+protocol = "udp"
+internal_port = 4001
+
+[[services.ports]]
+port = 4001
+
+# Persistentes Volume für den Keypair (damit Peer-ID stabil bleibt nach Redeployment)
+[mounts]
+source = "mycelium_relay_data"
+destination = "/data"
+
+# Kleinstmögliche Maschine – reicht vollständig
+[vm]
+cpu_kind = "shared"
+cpus = 1
+memory_mb = 256

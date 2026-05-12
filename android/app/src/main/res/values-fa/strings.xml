@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">میسلیوم</string>
+    <string name="app_tagline">شبکه آفلاین</string>
+    <string name="nav_chat">چت</string>
+    <string name="nav_bulletin">تابلو</string>
+    <string name="nav_mail">نامه</string>
+    <string name="nav_peers">همتایان</string>
+    <string name="nav_settings">تنظیمات</string>
+    <string name="chat_title">چت شبکه‌ای</string>
+    <string name="chat_message_hint">پیام…</string>
+    <string name="chat_send">ارسال</string>
+    <string name="chat_no_conversations">هیچ مکالمه‌ای وجود ندارد.\nبرای اتصال QR کد اسکن کنید.</string>
+    <string name="bulletin_title">تابلو اعلانات</string>
+    <string name="mail_inbox">صندوق ورودی</string>
+    <string name="mail_sent">ارسال‌شده‌ها</string>
+    <string name="wallet_title">کیف پول</string>
+    <string name="wallet_balance">موجودی</string>
+    <string name="wallet_send">ارسال</string>
+    <string name="wallet_receive">دریافت</string>
+    <string name="notification_running">شبکه میسلیوم فعال است</string>
+    <string name="settings_title">تنظیمات</string>
+    <string name="peers_title">شبکه</string>
+    <string name="connectivity_internet">اینترنت</string>
+    <string name="connectivity_mesh">فقط مش</string>
+    <string name="connectivity_switching">در حال رفتن به مش…</string>
+    <string name="wallet_hot_wallet">کیف پول گرم</string>
+    <string name="wallet_cache_limit">حد کش: %1$s</string>
+    <string name="wallet_auto_refill">پر کردن خودکار از کیف سرد</string>
+    <string name="wallet_refilling">در حال پر کردن…</string>
+    <string name="wallet_cold_wallet_address">آدرس کیف سرد</string>
+    <string name="wallet_cold_wallet_hint">mxc1… (کیف اصلی)</string>
+    <string name="wallet_set_cold_wallet">ثبت کیف سرد</string>
+    <string name="wallet_memo_hint">یادداشت (اختیاری)</string>
+    <string name="wallet_scan_mxcpay">اسکن QR mxcpay</string>
+    <string name="wallet_share_request">اشتراک درخواست</string>
+    <string name="wallet_payment_qr">QR پرداخت</string>
+</resources>

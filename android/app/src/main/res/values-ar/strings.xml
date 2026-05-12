@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">مايسيليوم</string>
+    <string name="app_tagline">شبكة غير متصلة</string>
+    <string name="nav_chat">محادثة</string>
+    <string name="nav_bulletin">لوحة</string>
+    <string name="nav_mail">بريد</string>
+    <string name="nav_peers">الأقران</string>
+    <string name="nav_settings">الإعدادات</string>
+    <string name="chat_title">محادثة الشبكة</string>
+    <string name="chat_message_hint">رسالة…</string>
+    <string name="chat_send">إرسال</string>
+    <string name="wallet_title">المحفظة</string>
+    <string name="wallet_balance">الرصيد</string>
+    <string name="notification_running">شبكة مايسيليوم نشطة</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="peers_title">الشبكة</string>
+    <string name="connectivity_internet">إنترنت</string>
+    <string name="connectivity_mesh">شبكة محلية فقط</string>
+    <string name="connectivity_switching">جارٍ التبديل إلى الشبكة…</string>
+    <string name="wallet_hot_wallet">محفظة ساخنة</string>
+    <string name="wallet_cache_limit">حد الذاكرة المؤقتة: %1$s</string>
+    <string name="wallet_auto_refill">تعبئة تلقائية من المحفظة الباردة</string>
+    <string name="wallet_refilling">جارٍ التعبئة…</string>
+    <string name="wallet_cold_wallet_address">عنوان المحفظة الباردة</string>
+    <string name="wallet_cold_wallet_hint">mxc1… (محفظتك الرئيسية)</string>
+    <string name="wallet_set_cold_wallet">تعيين المحفظة الباردة</string>
+    <string name="wallet_memo_hint">مذكرة (اختياري)</string>
+    <string name="wallet_scan_mxcpay">مسح QR لـ mxcpay</string>
+    <string name="wallet_share_request">مشاركة الطلب</string>
+    <string name="wallet_payment_qr">رمز QR للدفع</string>
+</resources>

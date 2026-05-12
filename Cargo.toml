@@ -1,0 +1,55 @@
+[workspace]
+members = [
+  "crates/mycelium-core",
+  "crates/mycelium-node",
+  "crates/mycelium-app",
+  "crates/mycelium-coin",
+  "crates/mycelium-ffi",
+  "crates/mycelium-cli",
+  "crates/mycelium-desktop",
+  "crates/mycelium-sim",
+  "crates/mycelium-relay",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Mycelium Contributors"]
+
+[workspace.dependencies]
+anyhow = "1"
+async-trait = "0.1"
+bincode = "1.3"
+blake3 = "1"
+clap = { version = "4", features = ["derive"] }
+futures = "0.3"
+libp2p = { version = "0.54", features = [
+  "tokio",
+  "tcp",
+  "quic",
+  "noise",
+  "yamux",
+  "mdns",
+  "gossipsub",
+  "request-response",
+  "cbor",
+  "macros",
+  "relay",
+  "dcutr",
+  "identify",
+  "ping",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sled = "0.34"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "io-util", "sync", "time", "net"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+bs58 = "0.5"
+tempfile = "3"
+urlencoding = "2"
+once_cell = "1"
