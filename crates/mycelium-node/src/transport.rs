@@ -187,16 +187,14 @@ impl Libp2pTransport {
             SwarmEvent::Behaviour(MeshEvent::Identify(identify::Event::Received {
                 peer_id,
                 ..
-            })) => {
-                if self.peers.insert(peer_id) {
-                    self.swarm
-                        .behaviour_mut()
-                        .gossip
-                        .add_explicit_peer(&peer_id);
-                    return Ok(Some(TransportEvent::PeerUp {
-                        peer_id: peer_id.to_string(),
-                    }));
-                }
+            })) if self.peers.insert(peer_id) => {
+                self.swarm
+                    .behaviour_mut()
+                    .gossip
+                    .add_explicit_peer(&peer_id);
+                return Ok(Some(TransportEvent::PeerUp {
+                    peer_id: peer_id.to_string(),
+                }));
             }
             SwarmEvent::Behaviour(MeshEvent::Direct(request_response::Event::Message {
                 peer,
