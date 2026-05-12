@@ -5,6 +5,7 @@ use crate::forwarding::{
 use crate::storage::SledMessageStore;
 use crate::transport::Libp2pTransport;
 use libp2p::{identity, Multiaddr, PeerId};
+use mycelium_core::bootstrap;
 use mycelium_core::data::{now_ms, Priority};
 use mycelium_core::energy::NodeState;
 use mycelium_core::sync::BloomFilter;
@@ -43,7 +44,7 @@ impl Default for NodeConfig {
             keypair_path: Some(".mycelium-node/identity".to_string()),
             forwarding_interval_ms: 500,
             sync_interval_secs: 30,
-            bootstrap_peers: Vec::new(),
+            bootstrap_peers: bootstrap::default_peer_multiaddrs(),
             connectivity_rx: None,
         }
     }

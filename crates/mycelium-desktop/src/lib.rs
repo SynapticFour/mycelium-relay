@@ -4,6 +4,7 @@ use mycelium_app::node::AppNode;
 use mycelium_app::notify::NoopNotifier;
 use mycelium_app::storage::AppStorage;
 use mycelium_coin::{address_from_keypair, CoinNode, CoinTransport, LocalLedger};
+use mycelium_core::bootstrap;
 use mycelium_node::{NodeCommand, NodeConfig, NodeHandle, NodeRunner};
 use serde_json::json;
 use std::sync::Arc;
@@ -68,6 +69,12 @@ async fn start_node(
             return Ok(existing.local_peer_id.clone());
         }
     }
+
+    let bootstrap_peers = if bootstrap_peers.is_empty() {
+        bootstrap::default_peer_multiaddrs()
+    } else {
+        bootstrap_peers
+    };
 
     let config = NodeConfig {
         listen_addr: "/ip4/0.0.0.0/tcp/0".parse().expect("valid listen addr"),

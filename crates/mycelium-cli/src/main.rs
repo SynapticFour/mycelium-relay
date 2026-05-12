@@ -4,6 +4,7 @@ use mycelium_app::api::start_api_server;
 use mycelium_app::node::AppNode;
 use mycelium_app::notify::NoopNotifier;
 use mycelium_app::storage::AppStorage;
+use mycelium_core::bootstrap;
 use mycelium_core::energy::NodeState;
 use mycelium_node::{ConnectivityMonitor, NodeCommand, NodeConfig, NodeRunner};
 use std::sync::Arc;
@@ -46,7 +47,11 @@ async fn main() -> anyhow::Result<()> {
         keypair_path: None,
         forwarding_interval_ms: 500,
         sync_interval_secs: 30,
-        bootstrap_peers: cli.bootstrap.clone(),
+        bootstrap_peers: if cli.bootstrap.is_empty() {
+            bootstrap::default_peer_multiaddrs()
+        } else {
+            cli.bootstrap.clone()
+        },
         connectivity_rx: Some(connectivity.mode_rx),
     };
     let (runner, handle) = NodeRunner::new(config)?;
