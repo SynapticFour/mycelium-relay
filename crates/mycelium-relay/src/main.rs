@@ -163,12 +163,11 @@ async fn main() -> anyhow::Result<()> {
                 info!("Disconnected {peer_id} (total: {c})");
             }
             SwarmEvent::Behaviour(RelayBehaviourEvent::Relay(ev)) => match ev {
-                relay::Event::ReservationReqAccepted { renewed, .. } => {
-                    if !renewed {
-                        let mut r = reservations.write().await;
-                        *r += 1;
-                    }
+                relay::Event::ReservationReqAccepted { renewed, .. } if !renewed => {
+                    let mut r = reservations.write().await;
+                    *r += 1;
                 }
+                relay::Event::ReservationReqAccepted { .. } => {}
                 relay::Event::ReservationTimedOut { .. } => {
                     let mut r = reservations.write().await;
                     *r = r.saturating_sub(1);
