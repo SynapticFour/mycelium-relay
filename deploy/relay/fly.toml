@@ -1,4 +1,4 @@
-app = "myc-relay-synfour"   # ← deinen gewählten Namen hier eintragen
+app = "mycelium-relay"
 primary_region = "fra"
 
 # Docker image: root Dockerfile.relay (see scripts/deploy-relay-fly.sh / CI).

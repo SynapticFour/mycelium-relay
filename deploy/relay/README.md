@@ -12,12 +12,12 @@ curl -L https://fly.io/install.sh | sh
 fly auth login
 ```
 
-Create the app and volume once (names must match `fly.toml` `app` and `[mounts] source`):
+The deploy script creates the app and volume if missing. For a fully manual one-time setup (names must match `fly.toml` `app` and `[mounts] source`):
 
 ```bash
-fly apps create myc-relay-synfour --org personal   # or your org; match fly.toml `app`
+fly apps create mycelium-relay --org personal   # or your org; match fly.toml `app`
 fly volumes create mycelium_relay_data \
-  --app myc-relay-synfour \
+  --app mycelium-relay \
   --region fra \
   --size 1
 ```
@@ -53,7 +53,7 @@ curl -s http://localhost:8080/health
 ### 5. Logs and peer id
 
 ```bash
-fly logs --app myc-relay-synfour | grep -i peer
+fly logs --app mycelium-relay | grep -i peer
 ```
 
 ## Notes
