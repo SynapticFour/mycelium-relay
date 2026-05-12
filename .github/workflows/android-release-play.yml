@@ -52,7 +52,7 @@ jobs:
         run: cargo install cargo-ndk --version "^3"
 
       - name: Cache Rust build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -62,7 +62,7 @@ jobs:
           restore-keys: rust-android-
 
       - name: Set up Android SDK (platform, build-tools, NDK)
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: >-
             tools
@@ -96,14 +96,14 @@ jobs:
             android/uniffi-bindings/src/main/kotlin/uniffi/mycelium/mycelium.kt
 
       - name: Upload .so artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-android-libs
           path: android/rust-build/
           retention-days: 1
 
       - name: Upload UniFFI bindings
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: uniffi-bindings
           path: android/uniffi-bindings/src/main/kotlin/
@@ -117,13 +117,13 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Set up Android SDK (for Gradle AGP)
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: >-
             tools
@@ -132,19 +132,19 @@ jobs:
             build-tools;34.0.0
 
       - name: Download Rust .so files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: rust-android-libs
           path: android/rust-build/
 
       - name: Download UniFFI bindings
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: uniffi-bindings
           path: android/uniffi-bindings/src/main/kotlin/
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -173,21 +173,21 @@ jobs:
             -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 7
 
       - name: Upload R8 mapping
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-mapping
           path: android/app/build/outputs/mapping/release/mapping.txt
           retention-days: 7
 
       - name: Upload Play whatsnew directory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: play-whatsnew
           path: android/whatsnew/
@@ -199,19 +199,19 @@ jobs:
     needs: build-apk
     steps:
       - name: Download AAB
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-aab
           path: play-upload
 
       - name: Download R8 mapping
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-mapping
           path: play-upload
 
       - name: Download whatsnew (en-US)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: play-whatsnew
           path: whatsnew
