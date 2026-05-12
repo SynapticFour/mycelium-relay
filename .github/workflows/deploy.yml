@@ -15,7 +15,6 @@ on:
 
 jobs:
   deploy:
-    if: ${{ secrets.FLY_API_TOKEN != '' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -24,6 +23,11 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only --config deploy/relay/fly.toml --dockerfile Dockerfile.relay
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "Skipping Fly deploy: FLY_API_TOKEN is not set in repository secrets."
+            exit 0
+          fi
+          flyctl deploy --remote-only --config deploy/relay/fly.toml --dockerfile Dockerfile.relay
