@@ -16,10 +16,10 @@ mycelium-coin = { path = "../mycelium-coin" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tracing.workspace = true
 tracing-android = "0.2"
-uniffi = { version = "0.28", features = ["build", "bindgen", "cli"] }
+uniffi = { version = "0.31", features = ["build", "bindgen", "cli"] }
 serde_json.workspace = true
 once_cell = "1"
 uuid.workspace = true
 
 [build-dependencies]
-uniffi = { version = "0.28", features = ["build"] }
+uniffi = { version = "0.31", features = ["build"] }
