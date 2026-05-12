@@ -1,93 +1,62 @@
-# Mycelium Relay Server – Deployment
+# Mycelium Relay — Fly.io deployment
 
-## Erstmalig einrichten (einmalig manuell)
+Single image definition: **`Dockerfile.relay`** at the **repository root** (workspace build context).  
+Fly app config: **`deploy/relay/fly.toml`** (no `[build]` block — deploy script and CI pass `--dockerfile Dockerfile.relay`).
 
-### 1. Fly.io Account & CLI
+## One-time setup
+
+### 1. Fly.io CLI
 
 ```bash
-# Fly CLI installieren
 curl -L https://fly.io/install.sh | sh
-
-# Einloggen
 fly auth login
+```
 
-# App erstellen (einmalig)
-fly apps create mycelium-relay --org personal
+Create the app and volume once (names must match `fly.toml` `app` and `[mounts] source`):
 
-# Volume für persistenten Keypair anlegen (einmalig, 1 GB reicht)
+```bash
+fly apps create myc-relay-synfour --org personal   # or your org; match fly.toml `app`
 fly volumes create mycelium_relay_data \
-  --app mycelium-relay \
+  --app myc-relay-synfour \
   --region fra \
   --size 1
 ```
 
-### 2. GitHub Secret setzen
+### 2. GitHub Actions
+
+Create a deploy token and add **`FLY_API_TOKEN`** under **Settings → Secrets and variables → Actions**.
+
+The workflow **`.github/workflows/deploy.yml`** runs `scripts/deploy-relay-fly.sh` on pushes that touch relay code, `Dockerfile.relay`, or this folder.
+
+### 3. Manual deploy (same as CI)
+
+From the **repository root**:
 
 ```bash
-# Fly.io API Token erstellen
-fly tokens create deploy -x 999999h
-
-# → Diesen Token als GitHub Secret "FLY_API_TOKEN" in deinem Repo speichern
-# GitHub Repo → Settings → Secrets and variables → Actions → New secret
+bash scripts/deploy-relay-fly.sh
 ```
 
-### 3. Erst-Deployment
+With extra `flyctl deploy` flags:
 
 ```bash
-fly deploy --config deploy/relay/fly.toml --dockerfile Dockerfile.relay
+bash scripts/deploy-relay-fly.sh --strategy immediate
 ```
 
-### 4. Peer-ID auslesen (WICHTIG – sofort nach erstem Start)
+### 4. Local Docker build (smoke)
 
 ```bash
-fly logs --app mycelium-relay | grep "Peer ID"
-# → Relay Peer ID: 12D3KooWXxxxx...
-
-# Status-Endpunkt prüfen:
-curl https://mycelium-relay.fly.dev/
-# → {"status":"ok","peer_id":"12D3KooW...","connections":0,...}
+docker build -f Dockerfile.relay -t mycelium-relay:local .
+docker run --rm -p 4001:4001/tcp -p 4001:4001/udp -p 8080:8080 mycelium-relay:local
+curl -s http://localhost:8080/health
 ```
 
-Diese Peer-ID kommt in die App-Konfiguration (siehe Cursor Prompt 7b).
-
-### 5. Öffentliche Multiaddr
-
-Nach dem Deployment ist dein Relay unter folgender Adresse erreichbar:
-
-```
-/dns4/mycelium-relay.fly.dev/tcp/4001/p2p/12D3KooW<DEINE-PEER-ID>
-```
-
-## GitHub Actions
-
-GitHub führt Workflows nur aus **`.github/workflows/` im Repository-Root** aus. Dort liegt die aktive Datei `.github/workflows/deploy.yml`. Eine Kopie mit gleichem Inhalt liegt unter `deploy/relay/.github/workflows/deploy.yml` (Projektstruktur); bei Änderungen beide Dateien abgleichen oder nur die Root-Datei pflegen und die Kopie aktualisieren.
-
-## Kosten
-
-Fly.io Free Tier deckt 3 shared-cpu-1x VMs mit 256 MB RAM ab.
-Der Relay-Server nutzt eine davon. Kosten: $0/Monat bis du wächst.
-
-## Mehrere Relay-Server (für Redundanz)
+### 5. Logs and peer id
 
 ```bash
-# Zweite Region (z.B. Amsterdam)
-fly regions add ams --app mycelium-relay
-fly scale count 2 --app mycelium-relay
+fly logs --app myc-relay-synfour | grep -i peer
 ```
 
-Fly.io verteilt die Instanzen automatisch.
+## Notes
 
-## Tests vor dem Deployment
-
-```bash
-# Lokal testen:
-docker build -f Dockerfile.relay -t mycelium-relay-test .
-docker run -p 4001:4001 -p 8080:8080 mycelium-relay-test
-
-# Status prüfen:
-curl http://localhost:8080/
-# → {"status":"ok","peer_id":"12D3KooW...","connections":0,...}
-
-# Relay-Node compiliert noch:
-cargo build --release -p mycelium-relay
-```
+- **GitHub** only runs workflows under **`.github/workflows/`** at the repo root; there is no duplicate workflow under `deploy/relay/.github`.
+- Fly free tier: shared CPU / 256 MB is enough for a small relay; scale when needed.

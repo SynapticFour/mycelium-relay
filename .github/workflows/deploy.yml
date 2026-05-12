@@ -8,6 +8,7 @@ on:
       - 'crates/mycelium-core/**'
       - 'crates/mycelium-node/**'
       - 'deploy/relay/**'
+      - 'scripts/deploy-relay-fly.sh'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'Dockerfile.relay'
@@ -30,4 +31,4 @@ jobs:
             echo "Skipping Fly deploy: FLY_API_TOKEN is not set in repository secrets."
             exit 0
           fi
-          flyctl deploy --remote-only --config deploy/relay/fly.toml --dockerfile Dockerfile.relay
+          bash scripts/deploy-relay-fly.sh

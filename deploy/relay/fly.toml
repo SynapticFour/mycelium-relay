@@ -1,14 +1,11 @@
-app = "mycelium-relay"
-primary_region = "fra"   # Frankfurt – zentral in Europa
+app = "myc-relay-synfour"   # ← deinen gewählten Namen hier eintragen
+primary_region = "fra"
 
-[build]
-# Relativ zu dieser fly.toml: Repo-Root (Docker-Build-Kontext = Arbeitsverzeichnis bei `fly deploy`)
-dockerfile = "../../Dockerfile.relay"
-
+# Docker image: root Dockerfile.relay (see scripts/deploy-relay-fly.sh / CI).
 [env]
 RUST_LOG = "info,mycelium_relay=debug"
 
-# HTTP Health-Check für Fly.io
+# HTTP Health-Check (Port 8080 intern → 80/443 extern via Fly-Proxy)
 [[services]]
 protocol = "tcp"
 internal_port = 8080
@@ -24,11 +21,11 @@ handlers = ["tls", "http"]
 [[services.http_checks]]
 interval = "30s"
 timeout = "5s"
-grace_period = "10s"
+grace_period = "15s"
 method = "GET"
 path = "/health"
 
-# libp2p TCP
+# libp2p TCP (direkt exposed, kein HTTP-Handler)
 [[services]]
 protocol = "tcp"
 internal_port = 4001
@@ -36,7 +33,7 @@ internal_port = 4001
 [[services.ports]]
 port = 4001
 
-# QUIC (UDP) – für NAT-Traversal
+# QUIC/UDP für NAT-Traversal
 [[services]]
 protocol = "udp"
 internal_port = 4001
@@ -44,12 +41,11 @@ internal_port = 4001
 [[services.ports]]
 port = 4001
 
-# Persistentes Volume für den Keypair (damit Peer-ID stabil bleibt nach Redeployment)
+# Persistentes Volume für Keypair (Peer-ID bleibt stabil über Restarts)
 [mounts]
 source = "mycelium_relay_data"
 destination = "/data"
 
-# Kleinstmögliche Maschine – reicht vollständig
 [vm]
 cpu_kind = "shared"
 cpus = 1

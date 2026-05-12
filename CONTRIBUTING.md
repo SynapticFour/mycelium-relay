@@ -10,6 +10,6 @@
 
 - **Android**: see `android/README.md`
 - **Desktop (Tauri)**: see `crates/mycelium-desktop/` and release workflow under `.github/workflows/`
-- **Relay deployment**: see `deploy/relay/README.md` and `.github/workflows/deploy.yml`
+- **Relay deployment**: see `deploy/relay/README.md`, `scripts/deploy-relay-fly.sh`, and `.github/workflows/deploy.yml`
 
 Pull requests should stay focused, include a clear description of intent, and keep CI green.
