@@ -226,7 +226,7 @@ impl LocalLedger {
             let (_, bytes) = item?;
             txs.push(bincode::deserialize(&bytes)?);
         }
-        txs.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+        txs.sort_by_key(|tx| std::cmp::Reverse(tx.timestamp_ms));
         txs.truncate(limit);
         Ok(txs)
     }
