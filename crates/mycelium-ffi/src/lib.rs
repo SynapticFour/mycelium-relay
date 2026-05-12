@@ -1,13 +1,16 @@
 #![allow(clippy::empty_line_after_doc_comments)]
 
 use async_trait::async_trait;
-use mycelium_app::envelope::{BulletinPost as AppBulletinPost, ChatMessage as AppChatMessage, MailMessage as AppMailMessage, AppMessage};
+use mycelium_app::envelope::{
+    AppMessage, BulletinPost as AppBulletinPost, ChatMessage as AppChatMessage,
+    MailMessage as AppMailMessage,
+};
 use mycelium_app::node::AppNode;
 use mycelium_app::notify::NoopNotifier;
 use mycelium_app::storage::AppStorage;
 use mycelium_coin::{
-    address_from_keypair, CoinNode, CoinTransport, HotWallet, HotWalletConfig as RustHotWalletConfig,
-    LocalLedger, PaymentRequest,
+    address_from_keypair, CoinNode, CoinTransport, HotWallet,
+    HotWalletConfig as RustHotWalletConfig, LocalLedger, PaymentRequest,
 };
 use mycelium_core::energy::NodeState as RustEnergyState;
 use mycelium_core::transport::ConnectivityMode as NetConnectivityMode;
@@ -247,12 +250,14 @@ pub fn init_node(config: NodeConfig) {
             connectivity_rx: Some(connectivity_rx_node),
         };
 
-        let (runner, handle) = NodeRunner::new(rust_config).expect("failed to initialize node runner");
+        let (runner, handle) =
+            NodeRunner::new(rust_config).expect("failed to initialize node runner");
         let local_peer_id = runner.local_peer_id().to_string();
         let runner_task = tokio::spawn(async move { runner.run().await });
 
         let app_storage = Arc::new(
-            AppStorage::open(&format!("{}/app", config.db_path)).expect("failed to open app storage"),
+            AppStorage::open(&format!("{}/app", config.db_path))
+                .expect("failed to open app storage"),
         );
         let coin_identity_path = format!("{}/identity", config.db_path);
         let coin_addr = address_from_keypair(
@@ -260,7 +265,8 @@ pub fn init_node(config: NodeConfig) {
                 .expect("failed to load node identity for coin"),
         );
         let coin_ledger = Arc::new(
-            LocalLedger::open(&format!("{}/coin", config.db_path)).expect("failed to open coin ledger"),
+            LocalLedger::open(&format!("{}/coin", config.db_path))
+                .expect("failed to open coin ledger"),
         );
         let coin_transport = Arc::new(FfiCoinTransport {
             handle: handle.clone(),
@@ -457,7 +463,10 @@ pub fn post_bulletin(scope: String, title: String, body: String, ttl_secs: u64) 
     let state = state_arc();
     runtime().block_on(async {
         let state = state.read().await;
-        let _ = state.app_node.post_bulletin(scope, title, body, ttl_secs).await;
+        let _ = state
+            .app_node
+            .post_bulletin(scope, title, body, ttl_secs)
+            .await;
     });
 }
 
@@ -477,7 +486,10 @@ pub fn send_mail(to_peer: String, subject: String, body: String) {
     let state = state_arc();
     runtime().block_on(async {
         let state = state.read().await;
-        let _ = state.app_node.send_mail(to_peer, subject, body, vec![]).await;
+        let _ = state
+            .app_node
+            .send_mail(to_peer, subject, body, vec![])
+            .await;
     });
 }
 
@@ -489,10 +501,7 @@ pub fn mail_inbox(limit: u32) -> Vec<MailMessage> {
             .unwrap_or_default()
             .into_iter()
             .map(|m| {
-                let is_read = state
-                    .app_node
-                    .is_mail_read(&m.id)
-                    .unwrap_or(false);
+                let is_read = state.app_node.is_mail_read(&m.id).unwrap_or(false);
                 to_mail_message(m, is_read)
             })
             .collect()
@@ -676,17 +685,23 @@ pub fn current_connectivity_mode() -> ConnectivityMode {
     })
 }
 
-pub fn build_payment_request_uri(to_address: String, amount_muon: u64, memo: Option<String>) -> String {
+pub fn build_payment_request_uri(
+    to_address: String,
+    amount_muon: u64,
+    memo: Option<String>,
+) -> String {
     PaymentRequest::new(to_address, amount_muon, memo).to_uri()
 }
 
 pub fn parse_payment_request_uri(uri: String) -> Option<PaymentRequestData> {
-    PaymentRequest::from_uri(&uri).ok().map(|p| PaymentRequestData {
-        to_address: p.to_address,
-        amount_muon: p.amount_muon,
-        memo: p.memo,
-        expires_at_ms: p.expires_at_ms,
-    })
+    PaymentRequest::from_uri(&uri)
+        .ok()
+        .map(|p| PaymentRequestData {
+            to_address: p.to_address,
+            amount_muon: p.amount_muon,
+            memo: p.memo,
+            expires_at_ms: p.expires_at_ms,
+        })
 }
 
 fn tx_to_info(t: mycelium_coin::Transaction) -> TxInfo {

@@ -1,9 +1,10 @@
-use crate::behaviour::{make_direct_response, DirectMessageRequest, DirectMessageResponse, MeshBehaviour};
+use crate::behaviour::{
+    make_direct_response, DirectMessageRequest, DirectMessageResponse, MeshBehaviour,
+};
 use futures::StreamExt;
 use libp2p::{
-    gossipsub, identify, mdns, noise, request_response,
+    gossipsub, identify, identity, mdns, noise, request_response,
     swarm::{Swarm, SwarmEvent},
-    identity,
     tcp, yamux, Multiaddr, PeerId, SwarmBuilder,
 };
 use mycelium_core::transport::{
@@ -188,7 +189,10 @@ impl Libp2pTransport {
                 ..
             })) => {
                 if self.peers.insert(peer_id) {
-                    self.swarm.behaviour_mut().gossip.add_explicit_peer(&peer_id);
+                    self.swarm
+                        .behaviour_mut()
+                        .gossip
+                        .add_explicit_peer(&peer_id);
                     return Ok(Some(TransportEvent::PeerUp {
                         peer_id: peer_id.to_string(),
                     }));
@@ -293,15 +297,17 @@ fn message_id_for_wire(message: &WireMessage) -> String {
     match message {
         WireMessage::Data(msg) => msg.envelope.id.0.clone(),
         WireMessage::SyncBloom { bloom, count } => {
-            format!(
-                "sync_bloom:{}:{}",
-                count,
-                blake3::hash(bloom).to_hex()
-            )
+            format!("sync_bloom:{}:{}", count, blake3::hash(bloom).to_hex())
         }
-        WireMessage::SyncIds { ids } => format!("sync_ids:{}", blake3::hash(ids.join(",").as_bytes()).to_hex()),
+        WireMessage::SyncIds { ids } => format!(
+            "sync_ids:{}",
+            blake3::hash(ids.join(",").as_bytes()).to_hex()
+        ),
         WireMessage::SyncRequest { ids } => {
-            format!("sync_req:{}", blake3::hash(ids.join(",").as_bytes()).to_hex())
+            format!(
+                "sync_req:{}",
+                blake3::hash(ids.join(",").as_bytes()).to_hex()
+            )
         }
         WireMessage::SyncData { messages } => {
             let joined = messages
@@ -312,7 +318,10 @@ fn message_id_for_wire(message: &WireMessage) -> String {
             format!("sync_data:{}", blake3::hash(joined.as_bytes()).to_hex())
         }
         WireMessage::ScopeAnnounce { scopes } => {
-            format!("scope_announce:{}", blake3::hash(scopes.join(",").as_bytes()).to_hex())
+            format!(
+                "scope_announce:{}",
+                blake3::hash(scopes.join(",").as_bytes()).to_hex()
+            )
         }
     }
 }

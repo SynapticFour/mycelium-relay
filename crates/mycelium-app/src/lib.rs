@@ -45,7 +45,9 @@ mod tests {
         };
         storage.save_bulletin(&mk(now - 1000, "e1")).expect("save1");
         storage.save_bulletin(&mk(now - 500, "e2")).expect("save2");
-        storage.save_bulletin(&mk(now + 10_000, "live")).expect("save3");
+        storage
+            .save_bulletin(&mk(now + 10_000, "live"))
+            .expect("save3");
         let removed = storage.prune_expired_bulletins().expect("prune");
         assert_eq!(removed, 2);
         let left = storage

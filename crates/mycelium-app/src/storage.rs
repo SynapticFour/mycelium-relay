@@ -87,13 +87,19 @@ impl AppStorage {
 
     pub fn save_mail_inbox(&self, mail: &MailMessage) -> anyhow::Result<()> {
         let tree = self.db.open_tree("mail:inbox")?;
-        tree.insert(ts_uuid_key(mail.timestamp_ms, mail.id), bincode::serialize(mail)?)?;
+        tree.insert(
+            ts_uuid_key(mail.timestamp_ms, mail.id),
+            bincode::serialize(mail)?,
+        )?;
         Ok(())
     }
 
     pub fn save_mail_sent(&self, mail: &MailMessage) -> anyhow::Result<()> {
         let tree = self.db.open_tree("mail:sent")?;
-        tree.insert(ts_uuid_key(mail.timestamp_ms, mail.id), bincode::serialize(mail)?)?;
+        tree.insert(
+            ts_uuid_key(mail.timestamp_ms, mail.id),
+            bincode::serialize(mail)?,
+        )?;
         Ok(())
     }
 

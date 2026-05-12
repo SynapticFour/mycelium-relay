@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::scheduler::LinkProfile;
+use async_trait::async_trait;
 use mycelium_core::transport::{MeshTransport, ScopeId, TransportEvent, WireMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

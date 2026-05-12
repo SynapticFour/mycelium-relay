@@ -84,10 +84,13 @@ async fn start_node(
         let _ = runner.run().await;
     });
 
-    let app_storage = Arc::new(AppStorage::open(&format!("{db_path}/app")).map_err(|e| e.to_string())?);
-    let coin_ledger = Arc::new(LocalLedger::open(&format!("{db_path}/coin")).map_err(|e| e.to_string())?);
+    let app_storage =
+        Arc::new(AppStorage::open(&format!("{db_path}/app")).map_err(|e| e.to_string())?);
+    let coin_ledger =
+        Arc::new(LocalLedger::open(&format!("{db_path}/coin")).map_err(|e| e.to_string())?);
     let identity_path = format!("{db_path}/identity");
-    let coin_keypair = mycelium_node::load_or_create_keypair(&identity_path).map_err(|e| e.to_string())?;
+    let coin_keypair =
+        mycelium_node::load_or_create_keypair(&identity_path).map_err(|e| e.to_string())?;
     let coin_addr = address_from_keypair(&coin_keypair);
     let coin_transport = Arc::new(DesktopCoinTransport {
         handle: handle.clone(),
@@ -150,10 +153,19 @@ async fn get_metrics(state: State<'_, SharedState>) -> Result<serde_json::Value,
 }
 
 #[tauri::command]
-async fn send_chat(state: State<'_, SharedState>, to_peer: String, body: String) -> Result<(), String> {
+async fn send_chat(
+    state: State<'_, SharedState>,
+    to_peer: String,
+    body: String,
+) -> Result<(), String> {
     let guard = state.read().await;
-    let s = guard.as_ref().ok_or_else(|| "node not started".to_string())?;
-    s.app_node.send_chat(Some(to_peer), body).await.map_err(|e| e.to_string())
+    let s = guard
+        .as_ref()
+        .ok_or_else(|| "node not started".to_string())?;
+    s.app_node
+        .send_chat(Some(to_peer), body)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -189,7 +201,9 @@ async fn send_mail(
     body: String,
 ) -> Result<(), String> {
     let guard = state.read().await;
-    let s = guard.as_ref().ok_or_else(|| "node not started".to_string())?;
+    let s = guard
+        .as_ref()
+        .ok_or_else(|| "node not started".to_string())?;
     s.app_node
         .send_mail(to_peer, subject, body, vec![])
         .await
@@ -197,7 +211,10 @@ async fn send_mail(
 }
 
 #[tauri::command]
-async fn mail_inbox(state: State<'_, SharedState>, limit: u32) -> Result<Vec<serde_json::Value>, String> {
+async fn mail_inbox(
+    state: State<'_, SharedState>,
+    limit: u32,
+) -> Result<Vec<serde_json::Value>, String> {
     let guard = state.read().await;
     let Some(s) = guard.as_ref() else {
         return Ok(vec![]);
@@ -248,7 +265,9 @@ async fn post_bulletin(
     ttl_secs: u64,
 ) -> Result<(), String> {
     let guard = state.read().await;
-    let s = guard.as_ref().ok_or_else(|| "node not started".to_string())?;
+    let s = guard
+        .as_ref()
+        .ok_or_else(|| "node not started".to_string())?;
     s.app_node
         .post_bulletin(scope, title, body, ttl_secs)
         .await
@@ -285,7 +304,9 @@ async fn bulletins_for_scope(
 #[tauri::command]
 async fn add_peer(state: State<'_, SharedState>, multiaddr: String) -> Result<(), String> {
     let guard = state.read().await;
-    let s = guard.as_ref().ok_or_else(|| "node not started".to_string())?;
+    let s = guard
+        .as_ref()
+        .ok_or_else(|| "node not started".to_string())?;
     s.handle
         .send(NodeCommand::AddBootstrapPeer { multiaddr })
         .await
@@ -301,7 +322,9 @@ async fn wallet_send(
     memo: Option<String>,
 ) -> Result<(), String> {
     let guard = state.read().await;
-    let s = guard.as_ref().ok_or_else(|| "node not started".to_string())?;
+    let s = guard
+        .as_ref()
+        .ok_or_else(|| "node not started".to_string())?;
     s.coin_node
         .submit_transfer_from_identity_path(
             &s.coin_identity_path,

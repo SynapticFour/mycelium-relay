@@ -91,7 +91,8 @@ impl AppNode {
                     if let Err(err) = self.storage.save_mail_inbox(&m) {
                         warn!("failed to save inbox mail: {err}");
                     }
-                    self.notifier.on_mail_received(&m.from_display_name, &m.subject);
+                    self.notifier
+                        .on_mail_received(&m.from_display_name, &m.subject);
                     let _ = self.mail_tx.send(m);
                 }
                 AppPayload::Coin(inner) => {
@@ -99,9 +100,7 @@ impl AppNode {
                         let from_peer = msg.envelope.from_peer.clone();
                         match bincode::deserialize::<mycelium_coin::CoinPayload>(&inner) {
                             Ok(payload) => {
-                                if let Err(err) =
-                                    coin.handle_incoming(payload, &from_peer).await
-                                {
+                                if let Err(err) = coin.handle_incoming(payload, &from_peer).await {
                                     warn!("coin dispatch failed: {err}");
                                 }
                             }

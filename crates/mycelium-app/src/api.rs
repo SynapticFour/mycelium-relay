@@ -98,7 +98,10 @@ pub async fn start_api_server(
         .route("/api/v1/settings/energy", put(put_energy))
         .route("/api/v1/store/stats", get(get_store_stats))
         .route("/api/v1/store/gc", post(post_store_gc))
-        .route("/api/v1/peers/:peer_id/reputation", get(get_peer_reputation))
+        .route(
+            "/api/v1/peers/:peer_id/reputation",
+            get(get_peer_reputation),
+        )
         .route("/api/v1/peers/add", post(post_peer_add))
         .route("/api/v1/scopes", get(get_scopes))
         .route("/api/v1/scopes/subscribe", post(post_scope_subscribe))
@@ -254,7 +257,12 @@ async fn put_energy(
         "passive" => NodeCommand::SetEnergyState(NodeState::Passive),
         _ => return Err((StatusCode::BAD_REQUEST, "invalid energy state".to_string())),
     };
-    state.app.node_handle().send(cmd).await.map_err(internal_err)?;
+    state
+        .app
+        .node_handle()
+        .send(cmd)
+        .await
+        .map_err(internal_err)?;
     Ok(StatusCode::OK)
 }
 
@@ -281,8 +289,13 @@ async fn get_store_stats(
     }))
 }
 
-async fn post_store_gc(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let deleted = state.storage.prune_expired_bulletins().map_err(internal_err)?;
+async fn post_store_gc(
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let deleted = state
+        .storage
+        .prune_expired_bulletins()
+        .map_err(internal_err)?;
     Ok(Json(serde_json::json!({ "deleted": deleted })))
 }
 

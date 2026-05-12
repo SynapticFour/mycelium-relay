@@ -1,10 +1,10 @@
 use anyhow::Context;
 use clap::Parser;
-use mycelium_core::energy::NodeState;
 use mycelium_app::api::start_api_server;
-use mycelium_app::notify::NoopNotifier;
 use mycelium_app::node::AppNode;
+use mycelium_app::notify::NoopNotifier;
 use mycelium_app::storage::AppStorage;
+use mycelium_core::energy::NodeState;
 use mycelium_node::{ConnectivityMonitor, NodeCommand, NodeConfig, NodeRunner};
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt};
@@ -60,7 +60,9 @@ async fn main() -> anyhow::Result<()> {
     });
 
     handle
-        .send(NodeCommand::SetEnergyState(parse_energy_state(&cli.energy_state)?))
+        .send(NodeCommand::SetEnergyState(parse_energy_state(
+            &cli.energy_state,
+        )?))
         .await?;
 
     let app_storage = Arc::new(AppStorage::open(&format!("{}/app", cli.db))?);

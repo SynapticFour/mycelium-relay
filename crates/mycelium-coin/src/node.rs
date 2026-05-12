@@ -73,10 +73,7 @@ impl CoinNode {
         if address_from_keypair(&kp) != self.local_address {
             anyhow::bail!("identity does not match coin address");
         }
-        let nonce = self
-            .ledger
-            .account_state(&self.local_address)?
-            .next_nonce;
+        let nonce = self.ledger.account_state(&self.local_address)?.next_nonce;
         let tx = Transaction::new(to, amount_muon, fee_muon, nonce, memo, &kp)?;
         self.send_transaction(tx).await
     }
@@ -86,9 +83,7 @@ impl CoinNode {
             ApplyResult::Accepted => {
                 info!("TX {} accepted locally, broadcasting", tx.id);
                 let inner = bincode::serialize(&CoinPayload::Transaction(tx))?;
-                self.transport
-                    .broadcast_coin_inner(inner)
-                    .await?;
+                self.transport.broadcast_coin_inner(inner).await?;
                 Ok(())
             }
             result => Err(anyhow::anyhow!("TX rejected: {result:?}")),
@@ -101,13 +96,24 @@ impl CoinNode {
         from_peer: &str,
     ) -> anyhow::Result<()> {
         match payload {
-            CoinPayload::Transaction(tx) => {
-                match self.ledger.apply_transaction(&tx)? {
-                    ApplyResult::Accepted => {
-                        info!("TX {} received and accepted", tx.id);
-                        let _ = self
-                            .ledger
-                            .add_witness(&tx.id, self.local_peer_id.clone())?;
+            CoinPayload::Transaction(tx) => match self.ledger.apply_transaction(&tx)? {
+                ApplyResult::Accepted => {
+                    info!("TX {} received and accepted", tx.id);
+                    let _ = self
+                        .ledger
+                        .add_witness(&tx.id, self.local_peer_id.clone())?;
+                    let witness = CoinPayload::Witness {
+                        tx_id: tx.id.clone(),
+                        peer_id: self.local_peer_id.clone(),
+                    };
+                    let inner = bincode::serialize(&witness)?;
+                    self.transport.broadcast_coin_inner(inner).await?;
+                }
+                ApplyResult::Duplicate => {
+                    if self
+                        .ledger
+                        .add_witness(&tx.id, self.local_peer_id.clone())?
+                    {
                         let witness = CoinPayload::Witness {
                             tx_id: tx.id.clone(),
                             peer_id: self.local_peer_id.clone(),
@@ -115,24 +121,11 @@ impl CoinNode {
                         let inner = bincode::serialize(&witness)?;
                         self.transport.broadcast_coin_inner(inner).await?;
                     }
-                    ApplyResult::Duplicate => {
-                        if self
-                            .ledger
-                            .add_witness(&tx.id, self.local_peer_id.clone())?
-                        {
-                            let witness = CoinPayload::Witness {
-                                tx_id: tx.id.clone(),
-                                peer_id: self.local_peer_id.clone(),
-                            };
-                            let inner = bincode::serialize(&witness)?;
-                            self.transport.broadcast_coin_inner(inner).await?;
-                        }
-                    }
-                    result => {
-                        warn!("TX from {from_peer} rejected: {result:?}");
-                    }
                 }
-            }
+                result => {
+                    warn!("TX from {from_peer} rejected: {result:?}");
+                }
+            },
             CoinPayload::Witness { tx_id, peer_id } => {
                 let _ = self.ledger.add_witness(&tx_id, peer_id)?;
             }
@@ -176,7 +169,10 @@ impl CoinNode {
                 {
                     Ok(()) => {
                         if let Err(e) = self.ledger.mark_refill_applied(&req.request_id) {
-                            warn!("failed to record refill request_id {}: {e:#}", req.request_id);
+                            warn!(
+                                "failed to record refill request_id {}: {e:#}",
+                                req.request_id
+                            );
                         }
                     }
                     Err(e) => {

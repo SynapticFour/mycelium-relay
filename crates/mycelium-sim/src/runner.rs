@@ -111,7 +111,12 @@ impl SimulationRunner {
         bandwidth_bytes_per_sec: u64,
     ) -> SimTransport {
         let event_rx = self.register_node(peer_id.clone(), bandwidth_bytes_per_sec);
-        SimTransport::new(peer_id, self.links.clone(), event_rx, self.action_tx.clone())
+        SimTransport::new(
+            peer_id,
+            self.links.clone(),
+            event_rx,
+            self.action_tx.clone(),
+        )
     }
 
     pub fn set_link(&mut self, a: String, b: String, profile: LinkProfile) {
@@ -315,11 +320,9 @@ impl SimulationRunner {
             return;
         }
         self.metrics.delivered += 1;
-        self.metrics.latencies_ms.push(
-            self.clock
-                .now_ms()
-                .saturating_sub(created_at_ms),
-        );
+        self.metrics
+            .latencies_ms
+            .push(self.clock.now_ms().saturating_sub(created_at_ms));
     }
 
     pub async fn spawn_sim_node(
@@ -361,7 +364,9 @@ fn wire_message_size(message: &WireMessage) -> usize {
             ids.iter().map(String::len).sum::<usize>() + 32
         }
         WireMessage::SyncBloom { bloom, .. } => bloom.len() + 32,
-        WireMessage::SyncData { messages } => messages.iter().map(|m| m.body.len()).sum::<usize>() + 64,
+        WireMessage::SyncData { messages } => {
+            messages.iter().map(|m| m.body.len()).sum::<usize>() + 64
+        }
         WireMessage::ScopeAnnounce { scopes } => scopes.iter().map(String::len).sum::<usize>() + 32,
     }
 }

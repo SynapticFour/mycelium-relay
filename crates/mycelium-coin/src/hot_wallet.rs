@@ -120,7 +120,9 @@ impl HotWallet {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefillResult {
     NoColdWallet,
-    NotNeeded { current_muon: u64 },
+    NotNeeded {
+        current_muon: u64,
+    },
     RefillBroadcast {
         amount_muon: u64,
         request_id: String,

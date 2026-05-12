@@ -4,8 +4,8 @@ mod address;
 mod hot_wallet;
 mod ledger;
 mod node;
-mod payment;
 mod payload;
+mod payment;
 mod refill;
 
 pub use address::{address_from_keypair, validate_address};
@@ -14,16 +14,16 @@ pub use ledger::{
     AccountState, Address, ApplyResult, LocalLedger, Transaction, TxId, MUON_PER_MXC,
 };
 pub use node::{CoinNode, CoinTransport};
-pub use payment::PaymentRequest;
 pub use payload::CoinPayload;
+pub use payment::PaymentRequest;
 pub use refill::{RefillRequest, REFILL_REQUEST_TTL_MS};
 
 #[cfg(test)]
 mod tests {
     use super::hot_wallet::{HotWallet, HotWalletConfig};
     use super::ledger::{ApplyResult, LocalLedger, Transaction, MUON_PER_MXC};
-    use super::payment::PaymentRequest;
     use super::payload::CoinPayload;
+    use super::payment::PaymentRequest;
     use super::refill::RefillRequest;
     use super::{address_from_keypair, validate_address, CoinNode, CoinTransport};
     use async_trait::async_trait;
@@ -39,7 +39,8 @@ mod tests {
         let db = sled::open(path).unwrap();
         let tree = db.open_tree("identity").unwrap();
         let ed = kp.clone().try_into_ed25519().unwrap();
-        tree.insert(b"ed25519_secret_key", ed.secret().as_ref()).unwrap();
+        tree.insert(b"ed25519_secret_key", ed.secret().as_ref())
+            .unwrap();
         tree.flush().unwrap();
         db.flush().unwrap();
     }
@@ -70,18 +71,8 @@ mod tests {
         let alice = address_from_keypair(&keypair);
         let bob = address_from_keypair(&Keypair::generate_ed25519());
         assert!(validate_address(&bob));
-        ledger
-            .genesis_credit(&alice, 10 * MUON_PER_MXC)
-            .unwrap();
-        let tx = Transaction::new(
-            bob,
-            5 * MUON_PER_MXC,
-            1000,
-            0,
-            None,
-            &keypair,
-        )
-        .unwrap();
+        ledger.genesis_credit(&alice, 10 * MUON_PER_MXC).unwrap();
+        let tx = Transaction::new(bob, 5 * MUON_PER_MXC, 1000, 0, None, &keypair).unwrap();
         assert_eq!(
             ledger.apply_transaction(&tx).unwrap(),
             ApplyResult::Accepted
@@ -98,27 +89,9 @@ mod tests {
         let alice = address_from_keypair(&keypair);
         let bob = address_from_keypair(&Keypair::generate_ed25519());
         let carol = address_from_keypair(&Keypair::generate_ed25519());
-        ledger
-            .genesis_credit(&alice, 10 * MUON_PER_MXC)
-            .unwrap();
-        let tx1 = Transaction::new(
-            bob,
-            8 * MUON_PER_MXC,
-            1000,
-            0,
-            None,
-            &keypair,
-        )
-        .unwrap();
-        let tx2 = Transaction::new(
-            carol,
-            8 * MUON_PER_MXC,
-            1000,
-            0,
-            None,
-            &keypair,
-        )
-        .unwrap();
+        ledger.genesis_credit(&alice, 10 * MUON_PER_MXC).unwrap();
+        let tx1 = Transaction::new(bob, 8 * MUON_PER_MXC, 1000, 0, None, &keypair).unwrap();
+        let tx2 = Transaction::new(carol, 8 * MUON_PER_MXC, 1000, 0, None, &keypair).unwrap();
         assert_eq!(
             ledger.apply_transaction(&tx1).unwrap(),
             ApplyResult::Accepted
@@ -136,18 +109,9 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let alice = address_from_keypair(&keypair);
         let bob_addr = address_from_keypair(&Keypair::generate_ed25519());
-        ledger
-            .genesis_credit(&alice, 10 * MUON_PER_MXC)
-            .unwrap();
-        let tx = Transaction::new(
-            bob_addr.clone(),
-            5 * MUON_PER_MXC,
-            1000,
-            0,
-            None,
-            &keypair,
-        )
-        .unwrap();
+        ledger.genesis_credit(&alice, 10 * MUON_PER_MXC).unwrap();
+        let tx =
+            Transaction::new(bob_addr.clone(), 5 * MUON_PER_MXC, 1000, 0, None, &keypair).unwrap();
         assert_eq!(
             ledger.apply_transaction(&tx).unwrap(),
             ApplyResult::Accepted
@@ -174,11 +138,7 @@ mod tests {
 
     #[test]
     fn payment_request_roundtrip() {
-        let req = PaymentRequest::new(
-            "mxc1abc123".into(),
-            5_000_000,
-            Some("Kaffee".into()),
-        );
+        let req = PaymentRequest::new("mxc1abc123".into(), 5_000_000, Some("Kaffee".into()));
         let uri = req.to_uri();
         assert!(uri.starts_with("mxcpay:mxc1abc123?amount=5000000"));
         let parsed = PaymentRequest::from_uri(&uri).unwrap();
@@ -216,9 +176,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let ledger_path = dir.path().join("ledger");
         let cold_id = dir.path().join("cold_identity");
-        let cold_ledger = Arc::new(
-            LocalLedger::open(ledger_path.to_str().unwrap()).unwrap(),
-        );
+        let cold_ledger = Arc::new(LocalLedger::open(ledger_path.to_str().unwrap()).unwrap());
         let cold_kp = Keypair::generate_ed25519();
         let cold_addr = address_from_keypair(&cold_kp);
         let hot_kp = Keypair::generate_ed25519();
@@ -255,8 +213,8 @@ mod tests {
             "cold-peer".into(),
             cold_id.to_str().unwrap().to_string(),
         );
-        let req = RefillRequest::new_signed(&hot_kp, cold_addr.clone(), 10 * MUON_PER_MXC, 1000)
-            .unwrap();
+        let req =
+            RefillRequest::new_signed(&hot_kp, cold_addr.clone(), 10 * MUON_PER_MXC, 1000).unwrap();
         let payload = CoinPayload::RefillRequest(req.clone());
         cold_node
             .handle_incoming(payload.clone(), "p99")
@@ -274,13 +232,12 @@ mod tests {
 
     #[tokio::test]
     async fn hot_wallet_enforce_cap_returns_excess() {
-        let base = std::env::temp_dir().join(format!("mycelium-hot-wallet-{}", uuid::Uuid::new_v4()));
+        let base =
+            std::env::temp_dir().join(format!("mycelium-hot-wallet-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&base).unwrap();
         let ledger_path = base.join("ledger");
         let id_path = base.join("identity");
-        let ledger = Arc::new(
-            LocalLedger::open(ledger_path.to_str().unwrap()).unwrap(),
-        );
+        let ledger = Arc::new(LocalLedger::open(ledger_path.to_str().unwrap()).unwrap());
         let hot_kp = Keypair::generate_ed25519();
         let hot_addr = address_from_keypair(&hot_kp);
         let cold_addr = address_from_keypair(&Keypair::generate_ed25519());

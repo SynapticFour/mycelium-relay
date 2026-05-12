@@ -99,7 +99,10 @@ pub fn bloom_sync_efficiency(seed: u64) -> ScenarioReport {
     report(sim.metrics(), 1)
 }
 
-pub fn bloom_sync_efficiency_compare(nodes: usize, messages_per_node: usize) -> BloomSyncEfficiencyReport {
+pub fn bloom_sync_efficiency_compare(
+    nodes: usize,
+    messages_per_node: usize,
+) -> BloomSyncEfficiencyReport {
     let messages_total = nodes * messages_per_node;
     let bloom_bytes_per_round = 1024;
     let avg_id_len = 64usize;
