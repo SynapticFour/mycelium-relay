@@ -19,6 +19,7 @@ tauri-build = { version = "2", features = [] }
 anyhow.workspace = true
 async-trait.workspace = true
 bincode.workspace = true
+dirs = "5"
 mycelium-core = { path = "../mycelium-core" }
 mycelium-node = { path = "../mycelium-node" }
 mycelium-app = { path = "../mycelium-app" }

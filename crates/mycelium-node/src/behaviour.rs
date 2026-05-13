@@ -1,8 +1,6 @@
 use libp2p::{
     gossipsub::{self, MessageAuthenticity},
-    identify,
-    mdns,
-    relay,
+    identify, mdns, relay,
     request_response::{self, ProtocolSupport},
     swarm::NetworkBehaviour,
     StreamProtocol,
@@ -42,8 +40,8 @@ impl MeshBehaviour {
         )
         .expect("gossipsub init");
 
-        let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), local_peer_id)
-            .expect("mdns init");
+        let mdns =
+            mdns::tokio::Behaviour::new(mdns::Config::default(), local_peer_id).expect("mdns init");
         let direct = request_response::cbor::Behaviour::new(
             [(
                 StreamProtocol::new("/mycelium/direct/1"),

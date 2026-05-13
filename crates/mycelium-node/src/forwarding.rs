@@ -256,7 +256,13 @@ mod tests {
         let pipeline = IngestPipeline::new(store);
         let mut seen = TestSeenCache::new();
         let msg = mk_msg("x");
-        assert!(pipeline.ingest(&mut seen, &msg, false).await.expect("ingest1"));
-        assert!(!pipeline.ingest(&mut seen, &msg, false).await.expect("ingest2"));
+        assert!(pipeline
+            .ingest(&mut seen, &msg, false)
+            .await
+            .expect("ingest1"));
+        assert!(!pipeline
+            .ingest(&mut seen, &msg, false)
+            .await
+            .expect("ingest2"));
     }
 }

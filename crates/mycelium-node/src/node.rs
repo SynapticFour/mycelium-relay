@@ -10,7 +10,8 @@ use mycelium_core::data::{now_ms, Priority};
 use mycelium_core::energy::NodeState;
 use mycelium_core::sync::BloomFilter;
 use mycelium_core::transport::{
-    ConnectivityMode, DirectMessage, MeshTransport, MessageStore, Scope, TransportEvent, WireMessage,
+    ConnectivityMode, DirectMessage, MeshTransport, MessageStore, Scope, TransportEvent,
+    WireMessage,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -70,19 +71,27 @@ impl NodeConfig {
 
 #[derive(Debug)]
 pub enum NodeCommand {
-    SendDirect { to_peer: String, body: String },
+    SendDirect {
+        to_peer: String,
+        body: String,
+    },
     SendDirectPayload {
         to_peer: String,
         body: String,
         payload: Vec<u8>,
     },
-    Broadcast { scope: String, body: String },
+    Broadcast {
+        scope: String,
+        body: String,
+    },
     BroadcastPayload {
         scope: String,
         body: String,
         payload: Vec<u8>,
     },
-    AddBootstrapPeer { multiaddr: String },
+    AddBootstrapPeer {
+        multiaddr: String,
+    },
     SubscribeScope(String),
     UnsubscribeScope(String),
     GcNow,
@@ -247,7 +256,8 @@ impl NodeRunner {
 
     pub async fn run(mut self) -> anyhow::Result<()> {
         info!("node started with peer_id={}", self.local_peer_id);
-        let mut forward_tick = interval(Duration::from_millis(self.config_forwarding_interval_ms()));
+        let mut forward_tick =
+            interval(Duration::from_millis(self.config_forwarding_interval_ms()));
         forward_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let mut sync_tick = interval(Duration::from_secs(self.config_sync_interval_secs()));
         sync_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -291,7 +301,8 @@ impl NodeRunner {
                 self.send_direct_internal(to_peer, body, payload).await?;
             }
             NodeCommand::Broadcast { scope, body } => {
-                self.broadcast_scoped(scope, body.clone(), body.into_bytes()).await?;
+                self.broadcast_scoped(scope, body.clone(), body.into_bytes())
+                    .await?;
             }
             NodeCommand::BroadcastPayload {
                 scope,
@@ -323,7 +334,10 @@ impl NodeRunner {
             }
             NodeCommand::StoreStats => {
                 let stats = self.store.stats().await?;
-                info!("store stats: count={} oldest_ms={}", stats.count, stats.oldest_ms);
+                info!(
+                    "store stats: count={} oldest_ms={}",
+                    stats.count, stats.oldest_ms
+                );
             }
             NodeCommand::SetEnergyState(state) => {
                 self.node_state = state;
@@ -339,8 +353,11 @@ impl NodeRunner {
         body: String,
         payload: Vec<u8>,
     ) -> anyhow::Result<()> {
-        let mut envelope =
-            mycelium_core::data::Envelope::new(self.local_peer_id.clone(), Some(to_peer.clone()), payload);
+        let mut envelope = mycelium_core::data::Envelope::new(
+            self.local_peer_id.clone(),
+            Some(to_peer.clone()),
+            payload,
+        );
         if let Some(keypair) = &self.keypair {
             let _ = envelope.sign(keypair);
         }
@@ -348,7 +365,10 @@ impl NodeRunner {
             envelope,
             body: body.clone(),
         };
-        let _ = self.ingest.ingest(&mut self.seen_cache, &msg, false).await?;
+        let _ = self
+            .ingest
+            .ingest(&mut self.seen_cache, &msg, false)
+            .await?;
         let peers = self.transport.known_peers();
         if peers.iter().any(|p| p == &to_peer) {
             self.enqueue(to_peer.clone(), msg).await?;
@@ -376,8 +396,11 @@ impl NodeRunner {
             return Ok(());
         }
         for to_peer in targets {
-            let mut envelope =
-                mycelium_core::data::Envelope::new(self.local_peer_id.clone(), None, payload.clone());
+            let mut envelope = mycelium_core::data::Envelope::new(
+                self.local_peer_id.clone(),
+                None,
+                payload.clone(),
+            );
             if let Some(keypair) = &self.keypair {
                 let _ = envelope.sign(keypair);
             }
@@ -385,7 +408,10 @@ impl NodeRunner {
                 envelope,
                 body: body.clone(),
             };
-            let _ = self.ingest.ingest(&mut self.seen_cache, &msg, false).await?;
+            let _ = self
+                .ingest
+                .ingest(&mut self.seen_cache, &msg, false)
+                .await?;
             self.enqueue(to_peer, msg).await?;
         }
         Ok(())
@@ -463,7 +489,11 @@ impl NodeRunner {
         Ok(())
     }
 
-    async fn handle_incoming_direct(&mut self, from_peer: String, message: WireMessage) -> anyhow::Result<()> {
+    async fn handle_incoming_direct(
+        &mut self,
+        from_peer: String,
+        message: WireMessage,
+    ) -> anyhow::Result<()> {
         if self.is_throttled(&from_peer) {
             return Ok(());
         }
@@ -528,9 +558,12 @@ impl NodeRunner {
                         return Ok(());
                     }
                 }
-                let decision =
-                    self.forwarding_policy
-                        .decide(&message, &self.local_peer_id, &peers, self.node_state);
+                let decision = self.forwarding_policy.decide(
+                    &message,
+                    &self.local_peer_id,
+                    &peers,
+                    self.node_state,
+                );
                 debug!(
                     "forward decision for message_id={} is {:?}",
                     message.envelope.id.0, decision
@@ -567,7 +600,12 @@ impl NodeRunner {
                 }
                 if own_ids.len() as f64 > (count as f64 * 0.8) && !missing_remote.is_empty() {
                     self.transport
-                        .send_direct(from_peer.clone(), WireMessage::SyncIds { ids: missing_remote })
+                        .send_direct(
+                            from_peer.clone(),
+                            WireMessage::SyncIds {
+                                ids: missing_remote,
+                            },
+                        )
                         .await?;
                 }
                 for id in own_ids.iter().take(256) {
@@ -609,7 +647,10 @@ impl NodeRunner {
             }
             WireMessage::SyncData { messages } => {
                 for message in messages {
-                    let _ = self.ingest.ingest(&mut self.seen_cache, &message, false).await?;
+                    let _ = self
+                        .ingest
+                        .ingest(&mut self.seen_cache, &message, false)
+                        .await?;
                 }
             }
             WireMessage::ScopeAnnounce { scopes } => {
@@ -642,7 +683,10 @@ impl NodeRunner {
             }
             if let Err(err) = self
                 .transport
-                .send_direct(pending.to_peer.clone(), WireMessage::Data(pending.message.clone()))
+                .send_direct(
+                    pending.to_peer.clone(),
+                    WireMessage::Data(pending.message.clone()),
+                )
                 .await
             {
                 warn!("forward send failed to {}: {}", pending.to_peer, err);
@@ -686,7 +730,13 @@ impl NodeRunner {
     }
 
     async fn send_scope_announce(&mut self, peer_id: String) -> anyhow::Result<()> {
-        let scopes = self.subscribed_scopes.read().await.iter().cloned().collect();
+        let scopes = self
+            .subscribed_scopes
+            .read()
+            .await
+            .iter()
+            .cloned()
+            .collect();
         self.transport
             .send_direct(peer_id, WireMessage::ScopeAnnounce { scopes })
             .await
@@ -849,4 +899,3 @@ fn priority_rank(priority: Priority) -> u8 {
         Priority::High => 2,
     }
 }
-

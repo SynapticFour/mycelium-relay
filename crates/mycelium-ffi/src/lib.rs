@@ -12,7 +12,6 @@ use mycelium_coin::{
     address_from_keypair, CoinNode, CoinTransport, HotWallet,
     HotWalletConfig as RustHotWalletConfig, LocalLedger, PaymentRequest,
 };
-use mycelium_core::bootstrap;
 use mycelium_core::energy::NodeState as RustEnergyState;
 use mycelium_core::transport::ConnectivityMode as NetConnectivityMode;
 use mycelium_node::{
@@ -31,6 +30,7 @@ pub struct NodeConfig {
     pub db_path: String,
     pub listen_addr: String,
     pub display_name: String,
+    /// Empty: [`NodeRunner::new`] loads peers via [`mycelium_core::bootstrap::load_bootstrap_peers`].
     pub bootstrap_peers: Vec<String>,
 }
 
@@ -238,12 +238,6 @@ pub fn init_node(config: NodeConfig) {
         let connectivity_rx_node = connectivity.mode_rx.clone();
         let mut connectivity_rx_bg = connectivity.mode_rx.clone();
 
-        let bootstrap_peers = if config.bootstrap_peers.is_empty() {
-            bootstrap::default_peer_multiaddrs()
-        } else {
-            config.bootstrap_peers.clone()
-        };
-
         let rust_config = RustNodeConfig {
             listen_addr: config
                 .listen_addr
@@ -253,7 +247,7 @@ pub fn init_node(config: NodeConfig) {
             keypair_path: Some(format!("{}/identity", config.db_path)),
             forwarding_interval_ms: 500,
             sync_interval_secs: 30,
-            bootstrap_peers,
+            bootstrap_peers: config.bootstrap_peers.clone(),
             connectivity_rx: Some(connectivity_rx_node),
         };
 

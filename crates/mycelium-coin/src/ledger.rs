@@ -1,6 +1,7 @@
 use crate::address::{address_from_public_key, validate_address};
 use libp2p::identity::PublicKey;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashSet;
 
 pub type Address = String;
@@ -226,7 +227,7 @@ impl LocalLedger {
             let (_, bytes) = item?;
             txs.push(bincode::deserialize(&bytes)?);
         }
-        txs.sort_by_key(|tx| std::cmp::Reverse(tx.timestamp_ms));
+        txs.sort_by_key(|tx| Reverse(tx.timestamp_ms));
         txs.truncate(limit);
         Ok(txs)
     }

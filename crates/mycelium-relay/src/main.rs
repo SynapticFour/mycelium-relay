@@ -40,7 +40,9 @@ struct StatusState {
     version: &'static str,
 }
 
-async fn status(axum::extract::State(s): axum::extract::State<StatusState>) -> Json<serde_json::Value> {
+async fn status(
+    axum::extract::State(s): axum::extract::State<StatusState>,
+) -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "status": "ok",
         "peer_id": s.peer_id,
@@ -56,7 +58,9 @@ async fn health() -> &'static str {
 }
 
 fn atomic_saturating_sub(a: &AtomicU64) {
-    let _ = a.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_sub(1)));
+    let _ = a.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+        Some(n.saturating_sub(1))
+    });
 }
 
 #[tokio::main]
@@ -104,7 +108,11 @@ async fn main() -> anyhow::Result<()> {
 
     let mut swarm = SwarmBuilder::with_existing_identity(key)
         .with_tokio()
-        .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)?
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )?
         .with_quic()
         .with_behaviour(|key| {
             let identify = identify::Behaviour::new(identify::Config::new(

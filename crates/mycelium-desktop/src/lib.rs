@@ -4,7 +4,6 @@ use mycelium_app::node::AppNode;
 use mycelium_app::notify::NoopNotifier;
 use mycelium_app::storage::AppStorage;
 use mycelium_coin::{address_from_keypair, CoinNode, CoinTransport, LocalLedger};
-use mycelium_core::bootstrap;
 use mycelium_node::{NodeCommand, NodeConfig, NodeHandle, NodeRunner};
 use serde_json::json;
 use std::sync::Arc;
@@ -57,6 +56,15 @@ impl CoinTransport for DesktopCoinTransport {
 }
 
 #[tauri::command]
+fn get_default_db_path() -> String {
+    dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("mycelium")
+        .to_string_lossy()
+        .to_string()
+}
+
+#[tauri::command]
 async fn start_node(
     state: State<'_, SharedState>,
     db_path: String,
@@ -69,12 +77,6 @@ async fn start_node(
             return Ok(existing.local_peer_id.clone());
         }
     }
-
-    let bootstrap_peers = if bootstrap_peers.is_empty() {
-        bootstrap::default_peer_multiaddrs()
-    } else {
-        bootstrap_peers
-    };
 
     let config = NodeConfig {
         listen_addr: "/ip4/0.0.0.0/tcp/0".parse().expect("valid listen addr"),
@@ -379,6 +381,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_default_db_path,
             start_node,
             get_peers,
             get_metrics,
