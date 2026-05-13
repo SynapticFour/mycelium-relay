@@ -84,7 +84,6 @@ impl<'de> Deserialize<'de> for BloomFilter {
         D: serde::Deserializer<'de>,
     {
         let bytes: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        BloomFilter::from_bytes(&bytes)
-            .ok_or_else(|| serde::de::Error::custom("invalid bloom bytes"))
+        BloomFilter::from_bytes(&bytes).ok_or_else(|| serde::de::Error::custom("invalid bloom bytes"))
     }
 }

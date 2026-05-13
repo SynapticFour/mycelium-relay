@@ -4,7 +4,7 @@ use mycelium_core::transport::ConnectivityMode;
 use tokio::sync::watch;
 use tracing::info;
 
-const PROBE_HOST: &str = "bootstrap.mycelium.network";
+const PROBE_HOST: &str = "mycelium-relay.fly.dev";
 const PROBE_PORT: u16 = 4001;
 
 pub struct ConnectivityMonitor {
