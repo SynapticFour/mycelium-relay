@@ -46,3 +46,15 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "hkdf"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "axum"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "rand_core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "dirs"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zip"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "rppal"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "ssd1306"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
