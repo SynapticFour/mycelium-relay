@@ -20,7 +20,7 @@ uuid.workspace = true
 raspberry-pi = ["dep:rppal", "dep:ssd1306", "dep:embedded-hal", "dep:linux-embedded-hal"]
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-rppal = { version = "0.18", optional = true }
+rppal = { version = "0.22", optional = true }
 ssd1306 = { version = "0.8", optional = true }
 embedded-hal = { version = "0.2", optional = true }
 linux-embedded-hal = { version = "0.3", optional = true }
