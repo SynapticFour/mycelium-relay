@@ -25,3 +25,16 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
+    ignore:
+      - dependency-name: "libp2p"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "embedded-hal"
+      - dependency-name: "tower-http"
+      - dependency-name: "sha2"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "bincode"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "uniffi"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "linux-embedded-hal"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
