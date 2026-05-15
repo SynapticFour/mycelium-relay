@@ -38,3 +38,9 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "linux-embedded-hal"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "keyring"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "rand"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tower"
+        update-types: ["version-update:semver-major"]
