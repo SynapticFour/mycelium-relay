@@ -44,3 +44,5 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "tower"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "hkdf"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
