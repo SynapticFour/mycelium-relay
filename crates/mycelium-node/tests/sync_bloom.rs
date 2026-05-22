@@ -20,10 +20,7 @@ fn make_bloom(ids: &[&str]) -> BloomFilter {
 #[test]
 fn bloom_diff_finds_ids_peer_lacks() {
     let remote_bloom = make_bloom(&["2", "3", "4"]);
-    let own_ids: Vec<String> = vec!["1", "2", "3"]
-        .into_iter()
-        .map(String::from)
-        .collect();
+    let own_ids: Vec<String> = vec!["1", "2", "3"].into_iter().map(String::from).collect();
 
     let send = ids_to_send_to_remote(&own_ids, &remote_bloom);
     assert_eq!(send, vec!["1".to_string()]);

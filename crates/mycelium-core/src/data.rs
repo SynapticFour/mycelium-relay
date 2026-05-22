@@ -163,11 +163,7 @@ mod tests {
         let keypair = libp2p::identity::Keypair::generate_ed25519();
         let peer_id = keypair.public().to_peer_id();
 
-        let mut envelope = Envelope::new(
-            peer_id.to_string(),
-            None,
-            b"original message".to_vec(),
-        );
+        let mut envelope = Envelope::new(peer_id.to_string(), None, b"original message".to_vec());
         envelope.sign(&keypair).unwrap();
 
         assert!(envelope.verify(&peer_id));
@@ -180,5 +176,4 @@ mod tests {
             "replay with changed timestamp must fail verification"
         );
     }
-
 }
