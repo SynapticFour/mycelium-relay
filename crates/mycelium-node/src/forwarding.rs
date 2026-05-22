@@ -138,7 +138,7 @@ impl IngestPipeline {
             let Ok(peer_id) = msg.envelope.from_peer.parse::<libp2p::PeerId>() else {
                 return Ok(false);
             };
-            if !msg.envelope.verify(&peer_id) {
+            if !msg.envelope.verify_or_transition(&peer_id) {
                 return Ok(false);
             }
         }

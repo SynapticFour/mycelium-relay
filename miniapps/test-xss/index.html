@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSP XSS Test</title>
+</head>
+<body>
+<script>
+  // This script block has no nonce attribute.
+  // With strict CSP it must NOT execute.
+  document.body.innerHTML = 'XSS EXECUTED';
+</script>
+<p id="result">CSP working correctly</p>
+</body>
+</html>

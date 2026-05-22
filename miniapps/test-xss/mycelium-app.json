@@ -1,0 +1,12 @@
+{
+  "id": "network.mycelium.test-xss",
+  "name": "CSP XSS Test",
+  "description": "Verifies inline scripts without nonce are blocked",
+  "version": "1.0.0",
+  "developer": "Mycelium",
+  "entry": "index.html",
+  "permissions": [],
+  "min_mycelium_version": "0.1.0",
+  "accepts_payments": false,
+  "runtime": "webview"
+}
