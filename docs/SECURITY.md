@@ -48,4 +48,4 @@ than plaintext. Upgrade your OS to ensure keyring availability.
 
 ## Reporting vulnerabilities
 
-Please report security issues to: security@mycelium.network
+Please report security issues to: contact@synapticfour.com (Synaptic Four)
