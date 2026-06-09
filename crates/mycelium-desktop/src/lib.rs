@@ -1,8 +1,8 @@
 use async_trait::async_trait;
+use mycelium_app::contacts::{Contact, ContactStatus};
 use mycelium_app::envelope::AppMessage;
 use mycelium_app::groups::Group;
 use mycelium_app::node::{AppInbox, AppNode};
-use mycelium_app::contacts::{Contact, ContactStatus};
 use mycelium_app::notify::NotificationSink;
 use mycelium_app::storage::AppStorage;
 use mycelium_coin::{address_from_keypair, CoinNode, CoinTransport, LocalLedger};
@@ -168,9 +168,7 @@ async fn start_node(
         local_peer_id.clone(),
         display_name,
         app_storage.clone(),
-        Arc::new(DesktopNotifier {
-            app: app.clone(),
-        }),
+        Arc::new(DesktopNotifier { app: app.clone() }),
         Some(coin_node.clone()),
         Some(app_store.clone()),
     );

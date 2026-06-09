@@ -356,7 +356,9 @@ mod tests {
 
         let file_key = load_or_create_file_fallback_key(db).unwrap();
         let vault_file = SecretVault::open_with_explicit_key(db, file_key).unwrap();
-        vault_file.write_secret("ed25519_identity", b"identity-bytes").unwrap();
+        vault_file
+            .write_secret("ed25519_identity", b"identity-bytes")
+            .unwrap();
 
         let keyring_key = {
             let mut k = [0u8; KEY_LEN];

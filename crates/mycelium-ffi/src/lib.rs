@@ -1,11 +1,11 @@
 #![allow(clippy::empty_line_after_doc_comments)]
 
 use async_trait::async_trait;
+use mycelium_app::contacts::{Contact, ContactStatus as AppContactStatus};
 use mycelium_app::envelope::{
     AppMessage, BulletinPost as AppBulletinPost, ChatMessage as AppChatMessage,
     MailMessage as AppMailMessage,
 };
-use mycelium_app::contacts::{Contact, ContactStatus as AppContactStatus};
 use mycelium_app::groups::Group;
 use mycelium_app::node::AppNode;
 use mycelium_app::notify::NotificationSink;
