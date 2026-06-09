@@ -1,5 +1,6 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   let address = $state("");
   let confirmed = $state(0);
   let pending = $state(0);
@@ -30,8 +31,11 @@
 
   $effect(() => {
     refresh();
-    const t = setInterval(refresh, 3000);
-    return () => clearInterval(t);
+    const unsubs = [];
+    (async () => {
+      unsubs.push(await listen("metrics-updated", refresh));
+    })();
+    return () => unsubs.forEach((u) => u?.());
   });
 </script>
 

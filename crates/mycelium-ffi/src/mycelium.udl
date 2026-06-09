@@ -5,9 +5,31 @@ namespace mycelium {
   sequence<string> known_peers();
   NodeMetrics metrics();
 
+  [Throws=MyceliumException]
   void send_chat_direct(string to_peer, string body);
+  [Throws=MyceliumException]
   void send_chat_broadcast(string body);
+  string local_enc_pubkey();
+  [Throws=MyceliumException]
+  void send_chat_encrypted(string to_peer, string body);
+  boolean has_enc_key_for(string peer_id);
   sequence<ChatMessage> chat_history(string peer_id, u32 limit);
+
+  sequence<ContactInfo> list_contacts();
+  sequence<ContactInfo> list_accepted_contacts();
+  sequence<ContactInfo> list_pending_contacts();
+  ContactInfo add_contact(string peer_id, string display_name, boolean accepted);
+  ContactInfo accept_contact(string peer_id);
+  void reject_contact(string peer_id);
+  void remove_contact(string peer_id);
+
+  sequence<GroupInfo> list_groups();
+  GroupInfo create_group(string name);
+  GroupInfo? import_group_invite(string json);
+  string export_group_invite(string group_id);
+  void send_group_message(string group_id, string body);
+  void delete_group(string group_id);
+  sequence<ChatMessage> group_chat_history(string group_id, u32 limit);
 
   void post_bulletin(string scope, string title, string body, u64 ttl_secs);
   sequence<BulletinPost> bulletins_for_scope(string scope);
@@ -28,6 +50,26 @@ namespace mycelium {
   void send_transaction(string to_address, u64 amount_muon, string? memo);
   sequence<TxInfo> wallet_recent_transactions(u32 limit);
   void request_faucet();
+
+  sequence<MiniAppInfo> list_installed_apps();
+  [Throws=MyceliumException]
+  MiniAppInstallPreview preview_miniapp_install(bytes bundle_data);
+  [Throws=MyceliumException]
+  MiniAppInfo install_app(bytes bundle_data, string? listing_app_id, boolean allow_sideload, boolean allow_downgrade);
+  void uninstall_app(string app_id);
+  bytes? get_app_file(string app_id, string path);
+  sequence<AppStoreListing> browse_app_store();
+  string? miniapp_storage_get(string app_id, string key);
+  void miniapp_storage_set(string app_id, string key, string value);
+  void miniapp_storage_delete(string app_id, string key);
+  string miniapp_bridge_call(string app_id, string method, string args_json);
+  string miniapp_issue_bridge_session(string app_id);
+  void miniapp_revoke_bridge_session(string app_id);
+  string miniapp_issue_capability(string app_id, string permission, string session_token);
+  void miniapp_publish_revocation(string app_id, string reason);
+  MiniAppPolicyData miniapp_get_policy(string app_id);
+  void miniapp_set_safe_mode(string app_id, boolean enabled);
+  void miniapp_report_app(string app_id);
 
   ConnectivityMode current_connectivity_mode();
 
@@ -62,6 +104,8 @@ dictionary NodeConfig {
   string listen_addr;
   string display_name;
   sequence<string> bootstrap_peers;
+  /// Optional 64-char hex (32 bytes) master key for at-rest encryption (Android).
+  string? storage_key_hex;
 };
 
 dictionary NodeMetrics {
@@ -125,6 +169,67 @@ dictionary MailMessage {
   boolean is_read;
 };
 
+dictionary GroupInfo {
+  string id;
+  string name;
+  u32 member_count;
+  u64 created_at_ms;
+};
+
+enum ContactStatus {
+  "Pending",
+  "Accepted",
+};
+
+dictionary ContactInfo {
+  string peer_id;
+  string display_name;
+  u64 added_at_ms;
+  ContactStatus status;
+};
+
+dictionary MiniAppInfo {
+  string id;
+  string name;
+  string description;
+  string version;
+  string developer;
+  string entry;
+  boolean accepts_payments;
+  string? payment_address;
+  sequence<string> permissions;
+};
+
+dictionary MiniAppInstallPreview {
+  MiniAppInfo manifest;
+  string bundle_hash;
+  string trust_level;
+  boolean listing_signature_ok;
+  string? installed_version;
+  boolean is_downgrade;
+  boolean has_inline_script;
+  boolean strict_csp_eligible;
+  boolean reproducible_attested;
+};
+
+dictionary AppStoreListing {
+  MiniAppInfo manifest;
+  string bundle_hash;
+  u64 updated_at_ms;
+  boolean signature_valid;
+};
+
+dictionary MiniAppPolicyData {
+  string app_id;
+  u8 reputation_score;
+  boolean safe_mode_active;
+  boolean safe_mode_forced;
+  boolean safe_mode_suggested;
+  boolean user_safe_mode;
+  boolean revoked;
+  boolean strict_csp_eligible;
+};
+
 enum EnergyState {
   "Active",
   "Intermittent",
@@ -142,5 +247,13 @@ callback interface NodeEventCallback {
   void on_chat_received(ChatMessage message);
   void on_mail_received(MailMessage message);
   void on_bulletin_received(BulletinPost post);
+  void on_app_store_listing(AppStoreListing listing);
   void on_connectivity_changed(ConnectivityMode mode);
+  void on_contact_request(string peer_id, string display_name);
+};
+
+[Error]
+interface MyceliumException {
+  InstallError(string detail);
+  ChatError(string detail);
 };

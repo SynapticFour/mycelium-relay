@@ -2,18 +2,26 @@
 name = "mycelium-app"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+base64 = "0.22"
 axum = "0.7"
 bincode.workspace = true
 blake3.workspace = true
+chacha20poly1305.workspace = true
+hkdf.workspace = true
+hmac = "0.12"
+sha2.workspace = true
 chrono.workspace = true
+hex = { workspace = true }
 mycelium-core = { path = "../mycelium-core" }
 mycelium-coin = { path = "../mycelium-coin" }
 mycelium-node = { path = "../mycelium-node" }
+libp2p.workspace = true
+rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sled.workspace = true
@@ -22,6 +30,7 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["cors"] }
 tracing.workspace = true
 uuid.workspace = true
+zip.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

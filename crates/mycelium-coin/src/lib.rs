@@ -7,6 +7,8 @@ mod node;
 mod payload;
 mod payment;
 mod refill;
+mod settlement_policy;
+mod velocity;
 
 pub use address::{address_from_keypair, validate_address};
 pub use hot_wallet::{HotWallet, HotWalletConfig, RefillResult};
@@ -17,6 +19,9 @@ pub use node::{CoinNode, CoinTransport};
 pub use payload::CoinPayload;
 pub use payment::PaymentRequest;
 pub use refill::{RefillRequest, REFILL_REQUEST_TTL_MS};
+pub use settlement_policy::{
+    SettlementPolicy, DEFAULT_MAX_BALANCE_MXC, DEFAULT_MAX_TX_MXC, HARD_MAX_BALANCE_MXC,
+};
 
 #[cfg(test)]
 mod tests {
@@ -125,6 +130,22 @@ mod tests {
         let bob = ledger.account_state(&bob_addr).unwrap();
         assert_eq!(bob.balance_muon, 5 * MUON_PER_MXC);
         assert_eq!(bob.pending_received, 0);
+    }
+
+    #[test]
+    fn settlement_policy_rejects_oversized_transfer() {
+        let dir = tempdir().unwrap();
+        let ledger = LocalLedger::open(dir.path().to_str().unwrap()).unwrap();
+        let keypair = Keypair::generate_ed25519();
+        let alice = address_from_keypair(&keypair);
+        let bob = address_from_keypair(&Keypair::generate_ed25519());
+        ledger.genesis_credit(&alice, 50 * MUON_PER_MXC).unwrap();
+        let huge = 30 * MUON_PER_MXC;
+        let tx = Transaction::new(bob, huge, 1000, 0, None, &keypair).unwrap();
+        assert!(matches!(
+            ledger.apply_transaction(&tx).unwrap(),
+            ApplyResult::Invalid(_)
+        ));
     }
 
     #[test]
@@ -241,9 +262,8 @@ mod tests {
         let hot_kp = Keypair::generate_ed25519();
         let hot_addr = address_from_keypair(&hot_kp);
         let cold_addr = address_from_keypair(&Keypair::generate_ed25519());
-        ledger
-            .genesis_credit(&hot_addr, 100 * MUON_PER_MXC)
-            .unwrap();
+        // Keep excess under single-transfer policy cap (25 MXC default).
+        ledger.genesis_credit(&hot_addr, 55 * MUON_PER_MXC).unwrap();
 
         let id_store = id_path.to_str().unwrap();
         write_identity_store(Path::new(id_store), &hot_kp);
@@ -270,6 +290,6 @@ mod tests {
         let cold_acc = ledger.account_state(&cold_addr).unwrap();
         let cold_credited = cold_acc.balance_muon + cold_acc.pending_received;
         assert!(hot_bal <= max);
-        assert!(cold_credited >= 49 * MUON_PER_MXC);
+        assert!(cold_credited >= 4 * MUON_PER_MXC);
     }
 }

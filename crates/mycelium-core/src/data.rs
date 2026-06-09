@@ -63,6 +63,14 @@ impl Envelope {
         }
     }
 
+    /// Envelope without a mesh signature (gossip relay; author auth lives in payload).
+    pub fn new_unsigned(from_peer: String, to_peer: Option<String>, payload: Vec<u8>) -> Self {
+        let mut e = Self::new(from_peer, to_peer, payload);
+        e.signature = None;
+        e.sig_version = 0;
+        e
+    }
+
     pub fn sign(&mut self, keypair: &libp2p::identity::Keypair) -> anyhow::Result<()> {
         self.sig_version = 1;
         let bytes_to_sign = self.bytes_for_signing();

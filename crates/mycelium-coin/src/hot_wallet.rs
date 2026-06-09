@@ -90,20 +90,25 @@ impl HotWallet {
                 None
             }
         };
-        if let Some((cold_addr, excess)) = maybe_return {
+        if let Some((cold_addr, mut excess)) = maybe_return {
             info!(
                 "hot wallet over cap, returning {} MXC to cold wallet",
                 excess / MUON_PER_MXC
             );
-            self.coin_node
-                .submit_transfer_from_identity_path(
-                    &self.identity_path,
-                    cold_addr,
-                    excess,
-                    1000,
-                    Some("auto-cap-return".into()),
-                )
-                .await?;
+            let chunk = self.coin_node.settlement_policy().max_transfer_muon;
+            while excess > 0 {
+                let amt = excess.min(chunk);
+                self.coin_node
+                    .submit_transfer_from_identity_path(
+                        &self.identity_path,
+                        cold_addr.clone(),
+                        amt,
+                        1000,
+                        Some("auto-cap-return".into()),
+                    )
+                    .await?;
+                excess -= amt;
+            }
         }
         Ok(())
     }

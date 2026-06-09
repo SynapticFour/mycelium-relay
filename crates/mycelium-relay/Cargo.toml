@@ -2,7 +2,7 @@
 name = "mycelium-relay"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
 authors.workspace = true
 description = "Minimal public libp2p relay for Mycelium bootstrap / hole punching."
 

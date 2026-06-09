@@ -1,5 +1,6 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   let peers = $state([]);
   let toPeer = $state("");
   let subject = $state("");
@@ -21,8 +22,12 @@
 
   $effect(() => {
     refresh();
-    const t = setInterval(refresh, 3000);
-    return () => clearInterval(t);
+    const unsubs = [];
+    (async () => {
+      unsubs.push(await listen("mail-updated", refresh));
+      unsubs.push(await listen("metrics-updated", refresh));
+    })();
+    return () => unsubs.forEach((u) => u?.());
   });
 </script>
 
