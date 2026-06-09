@@ -10,7 +10,6 @@ use libp2p::{
 use mycelium_core::transport::{
     ConnectivityMode, MeshTransport, MessageAck, ScopeId, TransportEvent, WireMessage,
 };
-use std::path::Path;
 use std::{collections::HashSet, str::FromStr};
 use tokio::sync::watch;
 use tracing::warn;
@@ -32,9 +31,10 @@ impl Libp2pTransport {
         keypair_path: Option<String>,
         bootstrap_peers: Vec<String>,
         connectivity_rx: Option<watch::Receiver<ConnectivityMode>>,
+        storage_key: crate::secrets::StorageKey,
     ) -> anyhow::Result<Self> {
         let keypair_path = keypair_path.unwrap_or_else(|| ".mycelium-node/identity".to_string());
-        let key = load_or_create_keypair(&keypair_path)?;
+        let key = crate::secrets::load_or_create_keypair(&keypair_path, storage_key)?;
         let local_peer_id = key.public().to_peer_id();
         let mut swarm = SwarmBuilder::with_existing_identity(key.clone())
             .with_tokio()
@@ -66,7 +66,30 @@ impl Libp2pTransport {
             bootstrap_peers,
         };
         transport.dial_all_bootstraps();
+        transport.enable_relay_inbound_listen();
         Ok(transport)
+    }
+
+    /// Listen on the public relay so other peers can reach us via `/p2p-circuit` (NAT traversal).
+    fn enable_relay_inbound_listen(&mut self) {
+        for addr in &self.bootstrap_peers {
+            let addr_str = addr.to_string();
+            if !addr_str.contains("/tcp/") {
+                continue;
+            }
+            let listen_str = format!("{addr_str}/p2p-circuit");
+            match listen_str.parse::<Multiaddr>() {
+                Ok(listen_addr) => {
+                    if let Err(e) = self.swarm.listen_on(listen_addr.clone()) {
+                        tracing::warn!("relay inbound listen on {listen_addr}: {e}");
+                    } else {
+                        tracing::info!("relay inbound listen enabled on {listen_addr}");
+                    }
+                }
+                Err(e) => tracing::warn!("invalid relay listen multiaddr {listen_str}: {e}"),
+            }
+            break;
+        }
     }
 
     fn dial_all_bootstraps(&mut self) {
@@ -122,6 +145,20 @@ impl MeshTransport for Libp2pTransport {
     async fn publish_scoped(&mut self, scope: ScopeId, payload: Vec<u8>) -> anyhow::Result<()> {
         let topic = gossipsub::IdentTopic::new(scope);
         self.swarm.behaviour_mut().gossip.publish(topic, payload)?;
+        Ok(())
+    }
+
+    async fn subscribe_scope(&mut self, scope: ScopeId) -> anyhow::Result<()> {
+        let topic = gossipsub::IdentTopic::new(scope.clone());
+        self.swarm.behaviour_mut().gossip.subscribe(&topic)?;
+        tracing::info!("subscribed to gossip topic: {scope}");
+        Ok(())
+    }
+
+    async fn unsubscribe_scope(&mut self, scope: ScopeId) -> anyhow::Result<()> {
+        let topic = gossipsub::IdentTopic::new(scope.clone());
+        self.swarm.behaviour_mut().gossip.unsubscribe(&topic)?;
+        tracing::info!("unsubscribed from gossip topic: {scope}");
         Ok(())
     }
 
@@ -257,7 +294,9 @@ impl Libp2pTransport {
                     payload: message.data,
                 }));
             }
-            SwarmEvent::Behaviour(MeshEvent::Relay(_)) => {}
+            SwarmEvent::Behaviour(MeshEvent::Relay(ev)) => {
+                tracing::debug!("relay client event: {ev:?}");
+            }
             SwarmEvent::Behaviour(MeshEvent::Dcutr(_)) => {}
             _ => {}
         }
@@ -267,31 +306,6 @@ impl Libp2pTransport {
 
 #[allow(dead_code)]
 fn _assert_response_type(_: DirectMessageResponse) {}
-
-/// Opens or creates the sled-backed identity store at `path` and returns the node's Ed25519 keypair.
-pub fn load_or_create_keypair(path: &str) -> anyhow::Result<identity::Keypair> {
-    if let Some(parent) = Path::new(path).parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let db = sled::open(path)?;
-    let tree = db.open_tree("identity")?;
-    if let Some(bytes) = tree.get(b"ed25519_secret_key")? {
-        let mut secret_bytes = bytes.to_vec();
-        let secret = identity::ed25519::SecretKey::try_from_bytes(&mut secret_bytes)
-            .map_err(|e| anyhow::anyhow!("invalid stored ed25519 secret key: {e}"))?;
-        let ed = identity::ed25519::Keypair::from(secret);
-        Ok(identity::Keypair::from(ed))
-    } else {
-        let keypair = identity::Keypair::generate_ed25519();
-        let ed = keypair
-            .clone()
-            .try_into_ed25519()
-            .map_err(|_| anyhow::anyhow!("generated non-ed25519 keypair"))?;
-        tree.insert(b"ed25519_secret_key", ed.secret().as_ref())?;
-        tree.flush()?;
-        Ok(keypair)
-    }
-}
 
 fn message_id_for_wire(message: &WireMessage) -> String {
     match message {
@@ -321,6 +335,27 @@ fn message_id_for_wire(message: &WireMessage) -> String {
             format!(
                 "scope_announce:{}",
                 blake3::hash(scopes.join(",").as_bytes()).to_hex()
+            )
+        }
+        WireMessage::EncryptedDirect {
+            encrypted_payload, ..
+        } => {
+            format!("enc_direct:{}", blake3::hash(encrypted_payload).to_hex())
+        }
+        WireMessage::EncryptedGroup {
+            group_id,
+            encrypted_payload,
+        } => {
+            format!(
+                "enc_group:{}:{}",
+                group_id,
+                blake3::hash(encrypted_payload).to_hex()
+            )
+        }
+        WireMessage::PeerInfo { enc_pubkey_hex, .. } => {
+            format!(
+                "peer_info:{}",
+                blake3::hash(enc_pubkey_hex.as_bytes()).to_hex()
             )
         }
     }

@@ -1,5 +1,6 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   let scope = $state("mycelium/general");
   let title = $state("");
   let body = $state("");
@@ -19,8 +20,11 @@
 
   $effect(() => {
     refresh();
-    const t = setInterval(refresh, 4000);
-    return () => clearInterval(t);
+    const unsubs = [];
+    (async () => {
+      unsubs.push(await listen("bulletin-updated", refresh));
+    })();
+    return () => unsubs.forEach((u) => u?.());
   });
 </script>
 

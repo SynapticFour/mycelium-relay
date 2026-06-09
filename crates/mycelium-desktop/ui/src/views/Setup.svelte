@@ -1,108 +1,219 @@
 <script>
-  import { createEventDispatcher } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
 
-  const dispatch = createEventDispatcher();
+  /** @type {{ onstart?: (config: { dbPath: string; displayName: string; bootstrapPeers: string[] }) => void | Promise<void> }} */
+  let { onstart } = $props();
 
+  let step = $state(0);
   let displayName = $state("");
-  let customBootstrap = $state("");
+  let error = $state("");
+  let starting = $state(false);
+  let dbPath = $state("");
 
-  async function submit() {
+  const identityLocked =
+    $derived(error.includes("decrypt") || error.includes("ed25519_identity"));
+
+  async function startMycelium() {
     if (!displayName.trim()) return;
-    const dbPath = await invoke("get_default_db_path");
-    const bootstrapPeers = customBootstrap
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    dispatch("start", { dbPath, displayName, bootstrapPeers });
+    error = "";
+    starting = true;
+    try {
+      dbPath = await invoke("get_default_db_path");
+      await onstart?.({
+        dbPath,
+        displayName: displayName.trim(),
+        bootstrapPeers: [],
+      });
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      starting = false;
+    }
+  }
+
+  async function finish() {
+    await startMycelium();
+  }
+
+  async function resetAndRetry() {
+    if (!displayName.trim()) return;
+    error = "";
+    starting = true;
+    try {
+      const path = dbPath || (await invoke("get_default_db_path"));
+      await invoke("reset_local_data", { dbPath: path });
+      dbPath = path;
+      await onstart?.({
+        dbPath: path,
+        displayName: displayName.trim(),
+        bootstrapPeers: [],
+      });
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      starting = false;
+    }
   }
 </script>
 
-<div class="setup">
-  <h1>Mycelium</h1>
-  <p class="tagline">Offline mesh network – works without internet</p>
-
-  <label>
-    Display name
-    <input bind:value={displayName} placeholder="Your name in the network" />
-  </label>
-
-  <details>
-    <summary>Advanced: custom bootstrap peers</summary>
-    <textarea
-      bind:value={customBootstrap}
-      placeholder="/dns4/mycelium-relay.fly.dev/tcp/4001/p2p/12D3KooW..."
-      rows="3"
-    ></textarea>
-    <small>Leave empty to use the default relay (when deployed) or MYCELIUM_BOOTSTRAP_PEERS / bootstrap.txt.</small>
-  </details>
-
-  <button onclick={submit} disabled={!displayName.trim()}>Start node</button>
-</div>
+{#if step === 0}
+  <div class="onboarding">
+    <div class="icon">🍄</div>
+    <h1>Mycelium</h1>
+    <p>Communicate without internet. No servers. No accounts.</p>
+    <button onclick={() => (step = 1)}>Get started →</button>
+  </div>
+{:else if step === 1}
+  <div class="onboarding">
+    <div class="features">
+      <div class="feature">
+        <span>🔒</span>
+        <div>
+          <strong>No servers</strong>
+          <p>Messages travel directly between devices.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <span>👤</span>
+        <div>
+          <strong>No account</strong>
+          <p>No sign-up. Works immediately.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <span>🗑️</span>
+        <div>
+          <strong>Panic wipe</strong>
+          <p>Delete everything instantly from Settings.</p>
+        </div>
+      </div>
+    </div>
+    <button onclick={() => (step = 2)}>Continue →</button>
+  </div>
+{:else}
+  <div class="onboarding">
+    <h2>What should others call you?</h2>
+    <p class="muted">You can use a pseudonym. Visible to people you message.</p>
+    <input
+      bind:value={displayName}
+      placeholder="Your name or pseudonym"
+      onkeydown={(e) => {
+        if (e.key === "Enter") void finish();
+      }}
+    />
+    {#if error}
+      <p class="error" role="alert">{error}</p>
+      {#if identityLocked}
+        <p class="hint">
+          Local identity files cannot be unlocked (often after a macOS keychain change or an older
+          build). Resetting creates a new identity and clears local messages on this device.
+        </p>
+        <button type="button" class="secondary" onclick={resetAndRetry} disabled={starting}>
+          Reset local data and try again
+        </button>
+      {/if}
+    {/if}
+    <button onclick={finish} disabled={!displayName.trim() || starting}>
+      {starting ? "Starting…" : "Start Mycelium"}
+    </button>
+  </div>
+{/if}
 
 <style>
-  .setup {
-    max-width: 640px;
-    margin: 40px auto;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
+  .onboarding {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 20px;
+    padding: 40px;
+    max-width: 480px;
+    margin: 0 auto;
   }
-  .tagline {
+  .icon {
+    font-size: 64px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
+  }
+  p {
+    text-align: center;
     color: var(--text-muted);
-    font-size: 14px;
-    margin: -4px 0 8px;
+    margin: 0;
   }
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 14px;
-  }
-  input,
-  textarea {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px;
-    background: none;
-    color: inherit;
-  }
-  textarea {
-    min-height: 72px;
-    font-family: ui-monospace, monospace;
-    font-size: 12px;
-  }
-  details {
+  .muted {
     font-size: 13px;
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    padding: 8px 10px;
   }
-  summary {
-    cursor: pointer;
-    font-weight: 500;
+  .error {
+    color: #b42318;
+    font-size: 13px;
+    text-align: center;
+    width: 100%;
   }
-  small {
-    display: block;
-    color: var(--text-muted);
-    margin-top: 6px;
+  .hint {
+    font-size: 12px;
+    text-align: center;
+    width: 100%;
     line-height: 1.4;
   }
+  button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+  }
+  .feature {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .feature span {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  .feature strong {
+    display: block;
+    margin-bottom: 2px;
+  }
+  .feature p {
+    text-align: left;
+    font-size: 13px;
+  }
+  input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: none;
+    color: inherit;
+    font-size: 16px;
+  }
   button {
-    margin-top: 8px;
-    padding: 10px 14px;
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: white;
     border: none;
     border-radius: 8px;
-    background: var(--accent);
-    color: #fff;
+    font-size: 15px;
     cursor: pointer;
-    font-weight: 600;
   }
   button:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 </style>

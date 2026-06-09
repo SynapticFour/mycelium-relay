@@ -2,7 +2,7 @@
 name = "mycelium-node"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
 authors.workspace = true
 
 [dependencies]
@@ -11,6 +11,7 @@ async-trait.workspace = true
 bincode.workspace = true
 blake3.workspace = true
 futures.workspace = true
+hex.workspace = true
 libp2p.workspace = true
 mycelium-core = { path = "../mycelium-core" }
 serde.workspace = true
@@ -20,4 +21,6 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+libp2p.workspace = true
+sled.workspace = true
 tempfile = "3"

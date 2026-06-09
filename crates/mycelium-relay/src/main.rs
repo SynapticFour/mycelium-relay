@@ -6,8 +6,9 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, SwarmBuilder,
 };
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tracing::info;
 
@@ -36,8 +37,22 @@ struct StatusState {
     peer_id: String,
     connections: Arc<AtomicU64>,
     reservations: Arc<AtomicU64>,
+    connected_peers: Arc<RwLock<HashSet<String>>>,
     started: Instant,
     version: &'static str,
+}
+
+async fn rendezvous(
+    axum::extract::State(s): axum::extract::State<StatusState>,
+) -> Json<serde_json::Value> {
+    let peers: Vec<String> = s
+        .connected_peers
+        .read()
+        .expect("connected_peers lock")
+        .iter()
+        .cloned()
+        .collect();
+    Json(serde_json::json!({ "peers": peers }))
 }
 
 async fn status(
@@ -86,16 +101,19 @@ async fn main() -> anyhow::Result<()> {
     let connections = Arc::new(AtomicU64::new(0));
     let reservations = Arc::new(AtomicU64::new(0));
 
+    let connected_peers = Arc::new(RwLock::new(HashSet::new()));
     let state = StatusState {
         peer_id: local_peer_id.to_string(),
         connections: connections.clone(),
         reservations: reservations.clone(),
+        connected_peers: connected_peers.clone(),
         started: Instant::now(),
         version: env!("CARGO_PKG_VERSION"),
     };
     let app = Router::new()
         .route("/", get(status))
         .route("/health", get(health))
+        .route("/rendezvous", get(rendezvous))
         .with_state(state);
     let status_port = args.status_port;
     tokio::spawn(async move {
@@ -150,10 +168,18 @@ async fn main() -> anyhow::Result<()> {
             }
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 connections.fetch_add(1, Ordering::Relaxed);
+                connected_peers
+                    .write()
+                    .expect("connected_peers lock")
+                    .insert(peer_id.to_string());
                 info!("+ {peer_id} ({})", connections.load(Ordering::Relaxed));
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
                 atomic_saturating_sub(&connections);
+                connected_peers
+                    .write()
+                    .expect("connected_peers lock")
+                    .remove(&peer_id.to_string());
                 info!("- {peer_id} ({})", connections.load(Ordering::Relaxed));
             }
             SwarmEvent::Behaviour(RelayBehaviourEvent::Relay(ev)) => match ev {

@@ -2,7 +2,8 @@
 name = "mycelium-desktop"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+authors.workspace = true
 
 [lib]
 name = "mycelium_desktop_lib"
@@ -16,6 +17,7 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+base64 = "0.22"
 anyhow.workspace = true
 async-trait.workspace = true
 bincode.workspace = true

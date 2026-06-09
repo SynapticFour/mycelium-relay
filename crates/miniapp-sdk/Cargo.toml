@@ -1,0 +1,18 @@
+[package]
+name = "miniapp-sdk"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+description = "CLI tools for Mycelium mini-app bundles (lint, hash)"
+
+[[bin]]
+name = "miniapp-sdk"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+blake3.workspace = true
+clap.workspace = true
+mycelium-app = { path = "../mycelium-app" }
+serde_json.workspace = true
+serde = { workspace = true, features = ["derive"] }

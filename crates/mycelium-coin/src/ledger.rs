@@ -1,4 +1,6 @@
 use crate::address::{address_from_public_key, validate_address};
+use crate::settlement_policy::SettlementPolicy;
+use crate::velocity::VelocityTracker;
 use libp2p::identity::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
@@ -116,6 +118,8 @@ pub struct AccountState {
 #[derive(Debug, Clone)]
 pub struct LocalLedger {
     db: sled::Db,
+    policy: SettlementPolicy,
+    velocity: VelocityTracker,
 }
 
 impl LocalLedger {
@@ -124,7 +128,20 @@ impl LocalLedger {
             .path(path)
             .flush_every_ms(Some(5000))
             .open()?;
-        Ok(Self { db })
+        let velocity = VelocityTracker::open(&db)?;
+        Ok(Self {
+            db,
+            policy: SettlementPolicy::beta_defaults(),
+            velocity,
+        })
+    }
+
+    pub fn policy(&self) -> &SettlementPolicy {
+        &self.policy
+    }
+
+    pub fn set_policy(&mut self, policy: SettlementPolicy) {
+        self.policy = policy;
     }
 
     /// Store a TX. Returns `Err` on I/O; business rules as [`ApplyResult`].
@@ -159,7 +176,31 @@ impl LocalLedger {
             return Ok(ApplyResult::Invalid("memo too long".into()));
         }
 
+        if let Err(msg) = self.policy.check_transfer_amount(tx.amount_muon) {
+            return Ok(ApplyResult::Invalid(msg));
+        }
+
         let encoded = bincode::serialize(tx)?;
+        if let Err(msg) = self.policy.check_tx_size(tx, encoded.len()) {
+            return Ok(ApplyResult::Invalid(msg));
+        }
+
+        let to_acc = self.account_state(&tx.to)?;
+        if let Err(msg) = self.policy.check_balance_cap(
+            to_acc.balance_muon,
+            to_acc.pending_received,
+            tx.amount_muon,
+        ) {
+            return Ok(ApplyResult::Invalid(msg));
+        }
+
+        let recent = self.velocity.recent_for(&tx.from)?;
+        if let Err(msg) = self
+            .policy
+            .check_velocity(&recent, tx.timestamp_ms, tx.amount_muon)
+        {
+            return Ok(ApplyResult::Invalid(msg));
+        }
         self.transaction_tree()?.insert(tx.id.as_bytes(), encoded)?;
 
         self.update_account(&tx.from, |acc| {
@@ -173,6 +214,9 @@ impl LocalLedger {
                 acc.pending_received += tx.amount_muon;
             }
         })?;
+
+        self.velocity
+            .record_outbound(&tx.from, tx.timestamp_ms, tx.amount_muon)?;
 
         Ok(ApplyResult::Accepted)
     }
@@ -191,9 +235,19 @@ impl LocalLedger {
         }
 
         if was_unconfirmed && tx.is_confirmed() {
-            self.update_account(&tx.to, |acc| {
-                acc.pending_received = acc.pending_received.saturating_sub(tx.amount_muon);
-                acc.balance_muon += tx.amount_muon;
+            let to = tx.to.clone();
+            let amt = tx.amount_muon;
+            let to_acc = self.account_state(&to)?;
+            if let Err(msg) = self.policy.check_balance_cap(
+                to_acc.balance_muon,
+                to_acc.pending_received.saturating_sub(amt),
+                amt,
+            ) {
+                return Err(anyhow::anyhow!(msg));
+            }
+            self.update_account(&to, |acc| {
+                acc.pending_received = acc.pending_received.saturating_sub(amt);
+                acc.balance_muon += amt;
             })?;
         }
 
@@ -232,8 +286,12 @@ impl LocalLedger {
         Ok(txs)
     }
 
-    /// Genesis: give a new account initial MXC (testnet / onboarding only).
+    /// Genesis: give a new account initial credits (preview / emergency onboarding only).
     pub fn genesis_credit(&self, address: &str, amount_muon: u64) -> anyhow::Result<()> {
+        let acc = self.account_state(address)?;
+        self.policy
+            .check_balance_cap(acc.balance_muon, acc.pending_received, amount_muon)
+            .map_err(|e| anyhow::anyhow!(e))?;
         self.update_account(address, |acc| {
             acc.balance_muon += amount_muon;
         })

@@ -1,5 +1,9 @@
 pub mod api;
+pub mod contacts;
 pub mod envelope;
+pub mod groups;
+pub mod miniapp;
+mod miniapp_storage_enc;
 pub mod node;
 pub mod notify;
 pub mod storage;
@@ -85,5 +89,19 @@ mod tests {
         assert_eq!(inbox[0].body, "newest");
         assert_eq!(inbox[1].body, "middle");
         assert_eq!(inbox[2].body, "older");
+    }
+
+    #[tokio::test]
+    async fn group_record_peer_seen_persists() {
+        use crate::groups::Group;
+        let dir = tempfile::tempdir().expect("tempdir");
+        let storage = AppStorage::open(dir.path().to_str().expect("path")).expect("open");
+        let g = Group::new("Team".into());
+        storage.save_group(&g).expect("save");
+        storage
+            .group_record_peer_seen(&g.id, "12D3KooWpeer")
+            .expect("record");
+        let loaded = storage.group_by_id(&g.id).expect("load").expect("exists");
+        assert!(loaded.members.contains(&"12D3KooWpeer".to_string()));
     }
 }

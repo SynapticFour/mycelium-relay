@@ -88,6 +88,14 @@ impl MeshTransport for SimTransport {
         Ok(())
     }
 
+    async fn subscribe_scope(&mut self, _scope: ScopeId) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn unsubscribe_scope(&mut self, _scope: ScopeId) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     async fn next_event(&mut self) -> anyhow::Result<TransportEvent> {
         self.event_rx
             .recv()
