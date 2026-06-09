@@ -161,9 +161,9 @@ impl AppNode {
                             } else {
                                 m.from_display_name.clone()
                             };
-                            if let Err(e) = self
-                                .storage
-                                .upsert_contact(&peer, &name, ContactStatus::Pending)
+                            if let Err(e) =
+                                self.storage
+                                    .upsert_contact(&peer, &name, ContactStatus::Pending)
                             {
                                 warn!("failed to save pending contact: {e}");
                             }

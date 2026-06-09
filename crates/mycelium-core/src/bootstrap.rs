@@ -20,9 +20,7 @@ pub fn relay_circuit_multiaddr(remote_peer_id: &str) -> Option<String> {
     if remote.is_empty() {
         return None;
     }
-    let base = BOOTSTRAP_PEERS
-        .iter()
-        .find(|addr| addr.contains("/tcp/"))?;
+    let base = BOOTSTRAP_PEERS.iter().find(|addr| addr.contains("/tcp/"))?;
     Some(format!("{base}/p2p-circuit/p2p/{remote}"))
 }
 
@@ -132,8 +130,8 @@ mod tests {
 
     #[test]
     fn relay_circuit_addr_uses_embedded_relay() {
-        let addr = relay_circuit_multiaddr("12D3KooWExamplePeerIdForTestOnly")
-            .expect("circuit addr");
+        let addr =
+            relay_circuit_multiaddr("12D3KooWExamplePeerIdForTestOnly").expect("circuit addr");
         assert!(addr.contains("mycelium-relay.fly.dev"));
         assert!(addr.contains("/p2p-circuit/p2p/12D3KooWExamplePeerIdForTestOnly"));
         assert!(addr.contains(RELAY_PEER_ID));

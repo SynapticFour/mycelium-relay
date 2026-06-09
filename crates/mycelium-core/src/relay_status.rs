@@ -16,7 +16,10 @@ pub struct RelayStatus {
 pub fn fetch_relay_status(host: Option<&str>) -> RelayStatus {
     let host = host.unwrap_or(DEFAULT_RELAY_HOST);
     let url = format!("https://{host}/");
-    let resp = match ureq::get(&url).timeout(std::time::Duration::from_secs(8)).call() {
+    let resp = match ureq::get(&url)
+        .timeout(std::time::Duration::from_secs(8))
+        .call()
+    {
         Ok(r) => r,
         Err(_) => {
             return RelayStatus {

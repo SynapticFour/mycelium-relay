@@ -84,7 +84,8 @@ mod tests {
 
     #[test]
     fn parses_dns4_multiaddr() {
-        let addr = "/dns4/mycelium-relay.fly.dev/tcp/4001/p2p/12D3KooW/p2p-circuit/p2p/12D3KooWOther";
+        let addr =
+            "/dns4/mycelium-relay.fly.dev/tcp/4001/p2p/12D3KooW/p2p-circuit/p2p/12D3KooWOther";
         match parse_invite(addr).unwrap() {
             InviteTarget::Multiaddr(m) => assert_eq!(m, addr),
             _ => panic!("expected multiaddr"),

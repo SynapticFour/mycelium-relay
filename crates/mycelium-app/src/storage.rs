@@ -42,10 +42,7 @@ impl AppStorage {
 
     pub fn save_contact(&self, contact: &Contact) -> anyhow::Result<()> {
         let tree = self.db.open_tree("contacts:data")?;
-        tree.insert(
-            contact.peer_id.as_bytes(),
-            bincode::serialize(contact)?,
-        )?;
+        tree.insert(contact.peer_id.as_bytes(), bincode::serialize(contact)?)?;
         Ok(())
     }
 
