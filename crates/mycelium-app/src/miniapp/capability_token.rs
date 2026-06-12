@@ -62,6 +62,11 @@ pub fn permission_for_method(method: &str) -> Option<Permission> {
         "util.scan_qr" => Some(Permission::Camera),
         "bulletin.post" => Some(Permission::BulletinWrite),
         "peers.nearby" => Some(Permission::PeerDiscovery),
+        "proximity.start" => Some(Permission::PeerDiscovery),
+        "proximity.nearby" => Some(Permission::PeerDiscovery),
+        "proximity.connect" => Some(Permission::PeerDiscovery),
+        "proximity.messages" => Some(Permission::Messaging),
+        "proximity.send_message" => Some(Permission::Messaging),
         _ => None,
     }
 }

@@ -27,6 +27,11 @@ window.mycelium = (() => {
     "util.scan_qr": "Camera",
     "bulletin.post": "BulletinWrite",
     "peers.nearby": "PeerDiscovery",
+    "proximity.start": "PeerDiscovery",
+    "proximity.nearby": "PeerDiscovery",
+    "proximity.connect": "PeerDiscovery",
+    "proximity.messages": "Messaging",
+    "proximity.send_message": "Messaging",
   };
 
   function call(method, args = {}) {
@@ -68,6 +73,20 @@ window.mycelium = (() => {
     postBulletin: (scope, title, body, ttl_secs) =>
       call("bulletin.post", { scope, title, body, ttl_secs }),
     getNearbyPeers: () => call("peers.nearby"),
+    startProximity: (profile, ttl_secs) =>
+      call("proximity.start", { ...profile, ttl_secs }),
+    stopProximity: () => call("proximity.stop"),
+    nearbyProfiles: () => call("proximity.nearby"),
+    connectProximity: (enc_pubkey_hex) =>
+      call("proximity.connect", { enc_pubkey_hex }),
+    proximityMessages: (since_ms = 0) =>
+      call("proximity.messages", { since_ms }),
+    sendProximityMessage: (enc_pubkey_hex, message) =>
+      call("proximity.send_message", { enc_pubkey_hex, message }),
+    /** Host calls `window.__mycelium_on_bulletin_refresh()` when a bulletin arrives. */
+    registerBulletinRefresh: (handler) => {
+      window.__mycelium_on_bulletin_refresh = handler;
+    },
     now: () => call("util.now"),
     scanQr: () => call("util.scan_qr"),
     alert: (message) => call("util.alert", { message }),
@@ -86,3 +105,22 @@ window.__mycelium_dispatch_message = (msg_json) => {
     }
   }
 };
+
+window.addEventListener("message", (e) => {
+  if (e.data && e.data.__mycelium_bulletin_refresh && window.__mycelium_on_bulletin_refresh) {
+    try {
+      window.__mycelium_on_bulletin_refresh();
+    } catch (err) {
+      console.error("[mycelium] bulletin refresh error:", err);
+    }
+  }
+  if (e.data && e.data.__mycelium_dispatch_message && window.__mycelium_msg_handler) {
+    try {
+      const raw = e.data.__mycelium_dispatch_message;
+      const msg = typeof raw === "string" ? JSON.parse(raw) : raw;
+      window.__mycelium_msg_handler(msg);
+    } catch (err) {
+      console.error("[mycelium] message handler error:", err);
+    }
+  }
+});

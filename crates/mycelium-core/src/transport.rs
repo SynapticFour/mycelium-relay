@@ -239,6 +239,10 @@ pub trait MeshTransport: Send {
     fn known_peers(&self) -> Vec<String>;
     fn local_keypair(&self) -> Option<libp2p::identity::Keypair>;
     async fn dial_peer(&mut self, multiaddr: String) -> anyhow::Result<()>;
+    /// Store multiaddr for periodic re-dial and connect now (QR / Connect tab).
+    async fn remember_and_dial(&mut self, multiaddr: String) -> anyhow::Result<()>;
+    /// Re-attempt all remembered bootstrap / invite dial targets.
+    fn redial_stored_targets(&mut self);
     async fn send_direct(&mut self, to_peer: String, message: WireMessage) -> anyhow::Result<()>;
     async fn publish_scoped(&mut self, scope: ScopeId, payload: Vec<u8>) -> anyhow::Result<()>;
     /// Join a gossipsub topic so scoped messages for `scope` are received.
@@ -246,6 +250,19 @@ pub trait MeshTransport: Send {
     /// Leave a gossipsub topic.
     async fn unsubscribe_scope(&mut self, scope: ScopeId) -> anyhow::Result<()>;
     async fn next_event(&mut self) -> anyhow::Result<TransportEvent>;
+    fn connected_peer_count(&self) -> usize {
+        self.known_peers().len()
+    }
+    fn max_direct_peers(&self) -> usize {
+        usize::MAX
+    }
+    fn peer_cap_rejections(&self) -> u64 {
+        0
+    }
+    /// Start a Kademlia lookup for `target_peer_id` (no-op on transports without DHT).
+    fn kad_find_peer(&mut self, _target_peer_id: &str) {}
+    /// Adjust Kademlia activity for connectivity mode changes.
+    fn kad_on_connectivity_changed(&mut self, _mode: ConnectivityMode) {}
 }
 
 #[async_trait]

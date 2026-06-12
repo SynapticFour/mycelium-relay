@@ -57,3 +57,19 @@ async fn check_internet_connectivity() -> bool {
     .await;
     matches!(result, Ok(Ok(_)))
 }
+
+/// Kademlia policy when connectivity mode changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KadConnectivityAction {
+    /// Run bootstrap and keep client-mode DHT queries enabled.
+    Activate,
+    /// Stay in client mode but skip bootstrap (mesh-only / offline).
+    Pause,
+}
+
+pub fn kad_action_for_mode(mode: ConnectivityMode) -> KadConnectivityAction {
+    match mode {
+        ConnectivityMode::Internet => KadConnectivityAction::Activate,
+        ConnectivityMode::MeshOnly => KadConnectivityAction::Pause,
+    }
+}

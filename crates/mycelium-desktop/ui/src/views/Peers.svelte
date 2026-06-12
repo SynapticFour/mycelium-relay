@@ -7,29 +7,43 @@
 
   let { peerId } = $props();
   let peers = $state([]);
-  let multiaddr = $state("");
-  let connectPeerId = $state("");
+  let pasteInvite = $state("");
   let qr = $state("");
+  let inviteUrl = $state("");
   let shareAddrs = $state([]);
   let relayStatus = $state(null);
+  let rendezvousEnabled = $state(false);
+  let connectMessage = $state("");
 
   async function refresh() {
     peers = await invoke("get_peers");
     shareAddrs = await invoke("get_shareable_multiaddrs");
+    try {
+      const settings = await invoke("get_settings");
+      rendezvousEnabled = settings?.rendezvous_enabled ?? true;
+    } catch {
+      rendezvousEnabled = true;
+    }
   }
 
-  async function add() {
-    if (!multiaddr.trim()) return;
-    await invoke("add_peer", { multiaddr: multiaddr.trim() });
-    multiaddr = "";
-    await refresh();
+  async function applyInvite() {
+    const raw = pasteInvite.trim();
+    if (!raw) return;
+    connectMessage = "";
+    try {
+      await invoke("connect_peer_id", { peerId: raw });
+      pasteInvite = "";
+      connectMessage = "Connecting… watch Connected devices below.";
+      await refresh();
+    } catch (e) {
+      connectMessage = e instanceof Error ? e.message : String(e);
+    }
   }
 
-  async function connectViaRelay() {
-    if (!connectPeerId.trim()) return;
-    await invoke("connect_peer_id", { peerId: connectPeerId.trim() });
-    connectPeerId = "";
-    await refresh();
+  async function copyInvite() {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    connectMessage = "Invite link copied.";
   }
 
   async function fetchRelayStatus() {
@@ -50,8 +64,19 @@
   });
 
   $effect(() => {
-    const payload = shareAddrs[0] || peerId || "not-started";
-    QRCode.toDataURL(payload).then((x) => (qr = x));
+    inviteUrl =
+      shareAddrs.find((a) => a.startsWith("mycelium://invite/")) ??
+      shareAddrs[0] ??
+      "";
+    if (!inviteUrl) {
+      qr = "";
+      return;
+    }
+    QRCode.toDataURL(inviteUrl, {
+      width: 320,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    }).then((x) => (qr = x));
   });
 
   $effect(() => {
@@ -61,65 +86,98 @@
   });
 </script>
 
-<div class="peers">
+<div class="connect">
   {#if relayStatus}
     <div class="relay-status" class:online={relayStatus.online}>
       <span class="dot"></span>
       {relayStatus.online
-        ? `Relay online · ${relayStatus.connections ?? 0} connections`
-        : "Relay status unavailable in UI (node may still use relay — see make desktop-dev log)"}
+        ? `Public relay online · ${relayStatus.connections ?? 0} devices connected`
+        : "Public relay unreachable — same Wi‑Fi still works"}
     </div>
   {/if}
 
-  <p class="hint">
-    <strong>Network:</strong> Devices on the same relay auto-connect every ~45s (after you restart both apps).
-    Same Wi‑Fi also uses local discovery. <strong>Contacts:</strong> Chat lists people you have history with;
-    scanning QR adds a transport link (like exchanging phone numbers).
-  </p>
-
-  <section>
-    <h3>Connect via relay (peer ID only)</h3>
-    <input bind:value={connectPeerId} placeholder="12D3KooW… (other device's peer ID)" />
-    <button onclick={connectViaRelay} disabled={!connectPeerId.trim()}>Connect via relay</button>
+  <section class="hero">
+    <h2>Connect another device</h2>
+    <p class="lede">
+      Put both devices on the <strong>same Wi‑Fi</strong> when you can — they connect
+      automatically. Otherwise scan each other&apos;s QR once (works across the internet via
+      relay).
+    </p>
+    <ul class="steps">
+      <li><strong>Mac → phone:</strong> show the QR below; on Android open <em>Connect → Scan their QR</em>.</li>
+      <li><strong>Phone → Mac:</strong> scan the phone&apos;s QR and paste it below.</li>
+      <li>
+        <strong>Different cities:</strong> scan QR once; <em>Relay discovery</em> is on by default
+        for new installs (both devices online, ~45s).
+      </li>
+      <li><strong>Bluetooth:</strong> not used for pairing yet — use Wi‑Fi or QR + relay.</li>
+    </ul>
+    {#if !rendezvousEnabled && peers.length === 0}
+      <p class="tip">
+        Tip: turn on <strong>Relay discovery</strong> in Settings if you are not on the same
+        Wi‑Fi.
+      </p>
+    {/if}
   </section>
 
-  <section>
-    <h3>Connect peer (multiaddr)</h3>
-    <input bind:value={multiaddr} placeholder="/dns4/…/p2p-circuit/p2p/… or /ip4/…/tcp/…/p2p/…" />
-    <button onclick={add}>Add bootstrap peer</button>
-  </section>
-
-  <section>
-    <h3>Connected peers</h3>
-    {#if peers.length === 0}
-      <p class="muted">No other devices connected yet.</p>
+  <section class="qr-panel">
+    <h3>Show this QR on your Mac</h3>
+    {#if qr}
+      <img alt="Invite QR for Android to scan" src={qr} />
     {:else}
-      {#each peers as peer}
-        <p>{peer}</p>
-      {/each}
+      <p class="muted">Starting node…</p>
+    {/if}
+    <p class="mono">{inviteUrl || peerId}</p>
+    <div class="row">
+      <button type="button" onclick={copyInvite} disabled={!inviteUrl}>Copy invite link</button>
+    </div>
+  </section>
+
+  <section>
+    <h3>Paste from the other device</h3>
+    <textarea
+      bind:value={pasteInvite}
+      placeholder="mycelium://invite/v1#12D3Koo…"
+      rows="3"
+    ></textarea>
+    <button type="button" onclick={applyInvite} disabled={!pasteInvite.trim()}>Connect</button>
+    {#if connectMessage}
+      <p class="message">{connectMessage}</p>
     {/if}
   </section>
 
   <section>
-    <h3>Your dial info</h3>
-    <p class="mono">{peerId}</p>
-    {#each shareAddrs as addr}
-      <p class="mono small">{addr}</p>
-    {/each}
-    {#if qr}<img alt="Invite QR (scan with Android)" src={qr} />{/if}
-    <p class="muted small">QR format: <code>mycelium://invite/v1#…</code></p>
+    <h3>Connected devices ({peers.length})</h3>
+    {#if peers.length === 0}
+      <p class="muted">
+        None yet. After scanning, wait a few seconds. Same Wi‑Fi should appear without relay.
+      </p>
+    {:else}
+      {#each peers as peer}
+        <p class="mono peer">{peer}</p>
+      {/each}
+    {/if}
+  </section>
+
+  <section class="muted-block">
+    <h3>Chat vs Connect</h3>
+    <p>
+      <strong>Connect</strong> = network link (this tab). <strong>Chat</strong> = messaging only
+      with accepted contacts. Scanning a peer-ID QR adds an accepted contact automatically.
+    </p>
   </section>
 </div>
 
 <style>
-  .peers {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+  .connect {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
     padding: 16px;
+    max-width: 520px;
+    margin: 0 auto;
   }
   .relay-status {
-    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -141,55 +199,96 @@
   .relay-status.online .dot {
     background: #1d9e75;
   }
-  .hint {
-    grid-column: 1 / -1;
-    font-size: 13px;
+  .hero h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
+  .lede {
+    margin: 0 0 12px;
+    font-size: 14px;
+    line-height: 1.5;
     color: var(--text-muted);
-    line-height: 1.45;
+  }
+  .steps {
     margin: 0;
+    padding-left: 1.2rem;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .tip {
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface, #f4f4f5);
+    font-size: 13px;
   }
   section {
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 12px;
+    padding: 14px;
   }
   h3 {
+    margin: 0 0 10px;
     font-size: 14px;
-    margin: 0 0 8px;
   }
-  input {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px;
-    margin: 8px 0;
-    background: none;
-    color: inherit;
-    font-size: 12px;
+  .qr-panel {
+    text-align: center;
   }
-  button {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    background: var(--accent);
-    color: #fff;
-    cursor: pointer;
+  .qr-panel img {
+    width: 280px;
+    max-width: 100%;
+    height: auto;
+    margin: 8px auto;
+    display: block;
   }
   .mono {
     font-family: ui-monospace, monospace;
     font-size: 11px;
     word-break: break-all;
   }
-  .small {
-    margin-top: 6px;
-    opacity: 0.85;
+  .peer {
+    margin: 6px 0;
   }
-  .muted {
+  textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+    font-family: ui-monospace, monospace;
+    background: none;
+    color: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 10px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .row {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  .muted,
+  .muted-block p {
     font-size: 13px;
     color: var(--text-muted);
+    line-height: 1.45;
   }
-  img {
-    max-width: 200px;
+  .message {
     margin-top: 8px;
+    font-size: 13px;
+    color: #1d6b4a;
   }
 </style>

@@ -12,6 +12,7 @@ use mycelium_core::bootstrap::{load_custom_bootstrap_peers, save_custom_bootstra
 use mycelium_core::energy::NodeState;
 use mycelium_node::{NodeCommand, NodeConfig, NodeHandle, NodeRunner};
 use serde_json::json;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
@@ -27,9 +28,46 @@ pub struct AppState {
     db_path: String,
     cap_mac_key: [u8; 32],
     energy_state: NodeState,
+    rendezvous_enabled: bool,
 }
 
 type SharedState = Arc<RwLock<Option<AppState>>>;
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct UiSettings {
+    #[serde(default = "default_rendezvous_enabled")]
+    rendezvous_enabled: bool,
+}
+
+fn default_rendezvous_enabled() -> bool {
+    true
+}
+
+impl Default for UiSettings {
+    fn default() -> Self {
+        Self {
+            rendezvous_enabled: true,
+        }
+    }
+}
+
+fn ui_settings_path(db_path: &str) -> PathBuf {
+    PathBuf::from(db_path).join("ui_settings.json")
+}
+
+fn load_ui_settings(db_path: &str) -> UiSettings {
+    let path = ui_settings_path(db_path);
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_ui_settings(db_path: &str, settings: &UiSettings) -> Result<(), String> {
+    let path = ui_settings_path(db_path);
+    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
 
 struct DesktopNotifier {
     app: AppHandle,
@@ -124,6 +162,9 @@ async fn start_node(
         }
     }
 
+    let ui_settings = load_ui_settings(&db_path);
+    let connectivity = mycelium_node::ConnectivityMonitor::new();
+    mycelium_node::ConnectivityMonitor::spawn_monitor(connectivity.mode_tx.clone());
     let config = NodeConfig {
         listen_addr: "/ip4/0.0.0.0/tcp/0".parse().expect("valid listen addr"),
         db_path: db_path.clone(),
@@ -131,10 +172,13 @@ async fn start_node(
         forwarding_interval_ms: 500,
         sync_interval_secs: 30,
         bootstrap_peers,
-        connectivity_rx: None,
+        connectivity_rx: Some(connectivity.mode_rx.clone()),
         display_name: Some(display_name.clone()),
         storage_key: None,
         max_relay_fanout: 3,
+        rendezvous_enabled: ui_settings.rendezvous_enabled,
+        bulletin_subscriptions: Vec::new(),
+        max_peers: 50,
     };
     let (runner, handle) = NodeRunner::new(config).map_err(|e| e.to_string())?;
     let local_peer_id = runner.local_peer_id().to_string();
@@ -165,6 +209,9 @@ async fn start_node(
         identity_path,
     ));
 
+    let enc_keypair = mycelium_node::secrets::load_or_create_enc_keypair(&db_path, None)
+        .map_err(|e| e.to_string())?;
+
     let (app_node, inbox) = AppNode::new(
         handle.clone(),
         local_peer_id.clone(),
@@ -173,6 +220,7 @@ async fn start_node(
         Arc::new(DesktopNotifier { app: app.clone() }),
         Some(coin_node.clone()),
         Some(app_store.clone()),
+        enc_keypair,
     );
     let app_node = Arc::new(app_node);
     app_node.clone().start_incoming_task();
@@ -190,6 +238,7 @@ async fn start_node(
         db_path: db_path.clone(),
         cap_mac_key,
         energy_state: NodeState::Active,
+        rendezvous_enabled: ui_settings.rendezvous_enabled,
     });
 
     Ok(local_peer_id)
@@ -231,20 +280,28 @@ async fn get_shareable_multiaddrs(state: State<'_, SharedState>) -> Result<Vec<S
 
 #[tauri::command]
 async fn connect_peer_id(state: State<'_, SharedState>, peer_id: String) -> Result<(), String> {
-    let peer_id = peer_id.trim().to_string();
-    {
-        let guard = state.read().await;
-        let s = guard
-            .as_ref()
-            .ok_or_else(|| "node not started".to_string())?;
-        let _ = s
-            .app_node
-            .add_contact(&peer_id, "", true)
-            .map_err(|e| e.to_string())?;
+    let input = peer_id.trim();
+    let target = mycelium_core::invite::parse_invite(input)
+        .ok_or_else(|| "invalid invite — use mycelium://invite/v1#… or a peer ID".to_string())?;
+    match target {
+        mycelium_core::invite::InviteTarget::Multiaddr(addr) => add_peer(state, addr).await,
+        mycelium_core::invite::InviteTarget::PeerId(peer_id) => {
+            let label = peer_id.chars().take(16).collect::<String>();
+            {
+                let guard = state.read().await;
+                let s = guard
+                    .as_ref()
+                    .ok_or_else(|| "node not started".to_string())?;
+                let _ = s
+                    .app_node
+                    .add_contact(&peer_id, &label, true)
+                    .map_err(|e| e.to_string())?;
+            }
+            let addr = mycelium_core::bootstrap::relay_circuit_multiaddr(&peer_id)
+                .ok_or_else(|| "invalid peer id".to_string())?;
+            add_peer(state, addr).await
+        }
     }
-    let addr = mycelium_core::bootstrap::relay_circuit_multiaddr(&peer_id)
-        .ok_or_else(|| "invalid peer id".to_string())?;
-    add_peer(state, addr).await
 }
 
 fn contact_json(c: Contact) -> serde_json::Value {
@@ -1050,7 +1107,28 @@ async fn get_settings(state: State<'_, SharedState>) -> Result<serde_json::Value
         "display_name": display_name,
         "energy_state": node_state_label(s.energy_state),
         "local_peer_id": s.local_peer_id,
+        "rendezvous_enabled": s.rendezvous_enabled,
     }))
+}
+
+#[tauri::command]
+async fn set_rendezvous_enabled(
+    state: State<'_, SharedState>,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut guard = state.write().await;
+    let s = guard
+        .as_mut()
+        .ok_or_else(|| "node not started".to_string())?;
+    s.handle
+        .send(NodeCommand::SetRendezvousEnabled(enabled))
+        .await
+        .map_err(|e| e.to_string())?;
+    s.rendezvous_enabled = enabled;
+    let mut ui = load_ui_settings(&s.db_path);
+    ui.rendezvous_enabled = enabled;
+    save_ui_settings(&s.db_path, &ui)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -1166,7 +1244,16 @@ fn setup_inbox_emitter(app: AppHandle, mut inbox: AppInbox) {
             tokio::select! {
                 result = inbox.chat_rx.recv() => {
                     match result {
-                        Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                        Ok(chat) => {
+                            let _ = app.emit(
+                                "chat-updated",
+                                serde_json::json!({
+                                    "from_peer": chat.from_peer,
+                                    "body": chat.message.body,
+                                }),
+                            );
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
                             let _ = app.emit("chat-updated", ());
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -1285,6 +1372,7 @@ pub fn run() {
             get_settings,
             set_display_name,
             set_energy_state,
+            set_rendezvous_enabled,
             get_store_stats,
             run_gc,
             get_custom_bootstrap_peers,

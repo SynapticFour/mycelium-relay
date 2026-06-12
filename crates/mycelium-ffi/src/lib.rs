@@ -11,6 +11,7 @@ use mycelium_app::envelope::{
 use mycelium_app::groups::Group;
 use mycelium_app::node::AppNode;
 use mycelium_app::notify::NotificationSink;
+use mycelium_app::proximity::PresenceProfile as AppPresenceProfile;
 use mycelium_app::storage::AppStorage;
 use mycelium_coin::{
     address_from_keypair, CoinNode, CoinTransport, HotWallet,
@@ -56,6 +57,8 @@ pub struct NodeConfig {
     pub bootstrap_peers: Vec<String>,
     /// Optional 64-char hex master key for at-rest encryption (Android).
     pub storage_key_hex: Option<String>,
+    pub rendezvous_enabled: bool,
+    pub bulletin_subscriptions: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +69,9 @@ pub struct NodeMetrics {
     pub messages_delivered_local: u64,
     pub pending_queue_size: u64,
     pub seen_cache_size: u64,
+    pub connected_peers: u64,
+    pub max_peers: u64,
+    pub peer_cap_rejections: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -132,6 +138,82 @@ fn contact_to_info(c: Contact) -> ContactInfo {
         display_name: c.display_name,
         added_at_ms: c.added_at_ms,
         status,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PresenceProfileData {
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+    pub age: Option<u8>,
+    pub gender: Option<String>,
+    pub looking_for: Option<String>,
+    pub interests: Vec<String>,
+    pub photo_base64: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NearbyProfile {
+    pub ephemeral_id: String,
+    pub enc_pubkey_hex: String,
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+    pub age: Option<u8>,
+    pub gender: Option<String>,
+    pub looking_for: Option<String>,
+    pub interests: Vec<String>,
+    pub photo_base64: Option<String>,
+    pub seen_at_ms: u64,
+    pub has_expired: bool,
+    pub interest_sent: bool,
+    pub interest_received: bool,
+    pub is_mutual: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProximityMessageData {
+    pub from_enc_pubkey_hex: String,
+    pub body: String,
+    pub received_at_ms: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ScopeKeyInfo {
+    pub scope: String,
+    pub display_name: String,
+    pub added_at_ms: u64,
+}
+
+fn profile_from_data(data: PresenceProfileData) -> AppPresenceProfile {
+    AppPresenceProfile {
+        display_name: data.display_name,
+        bio: data.bio,
+        age: data.age,
+        gender: data.gender,
+        looking_for: data.looking_for,
+        interests: data.interests,
+        photo_base64: data.photo_base64,
+    }
+}
+
+fn entry_to_nearby(entry: mycelium_app::proximity::ProximityNearbyEntry) -> NearbyProfile {
+    let s = entry.signal;
+    let has_expired = s.is_expired();
+    NearbyProfile {
+        ephemeral_id: s.ephemeral_id.to_string(),
+        enc_pubkey_hex: s.enc_pubkey_hex,
+        display_name: s.profile.display_name,
+        bio: s.profile.bio,
+        age: s.profile.age,
+        gender: s.profile.gender,
+        looking_for: s.profile.looking_for,
+        interests: s.profile.interests,
+        photo_base64: s.profile.photo_base64,
+        seen_at_ms: s.created_at_ms,
+        has_expired,
+        interest_sent: entry.interest_sent,
+        interest_received: entry.interest_received,
+        is_mutual: entry.is_mutual,
     }
 }
 
@@ -390,6 +472,9 @@ pub fn init_node(config: NodeConfig) {
             display_name: Some(config.display_name.clone()),
             storage_key,
             max_relay_fanout: 3,
+            rendezvous_enabled: config.rendezvous_enabled,
+            bulletin_subscriptions: config.bulletin_subscriptions.clone(),
+            max_peers: 50,
         };
 
         let (runner, handle) =
@@ -463,6 +548,10 @@ pub fn init_node(config: NodeConfig) {
             }
         });
 
+        let enc_keypair =
+            mycelium_node::secrets::load_or_create_enc_keypair(&config.db_path, storage_key)
+                .expect("failed to load enc keypair");
+
         let (app_node, mut inbox) = AppNode::new(
             handle.clone(),
             local_peer_id.clone(),
@@ -471,6 +560,7 @@ pub fn init_node(config: NodeConfig) {
             Arc::new(FfiNotifier),
             Some(coin_node.clone()),
             Some(app_store.clone()),
+            enc_keypair,
         );
         let app_node = Arc::new(app_node);
         app_node.clone().start_incoming_task();
@@ -500,7 +590,7 @@ pub fn init_node(config: NodeConfig) {
                 tokio::select! {
                     Ok(chat) = inbox.chat_rx.recv() => {
                         if let Some(cb) = CALLBACK.lock().expect("callback lock").clone() {
-                            cb.on_chat_received(to_chat_message(chat, String::new()));
+                            cb.on_chat_received(to_chat_message(chat.message, chat.from_peer));
                         }
                     }
                     Ok(mail) = inbox.mail_rx.recv() => {
@@ -559,6 +649,22 @@ pub fn local_peer_id() -> String {
     with_state(|s| s.local_peer_id.clone())
 }
 
+pub fn relay_peer_id() -> String {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state.handle.relay_peer_id()
+    })
+}
+
+pub fn relay_keypair_age_secs() -> u64 {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state.handle.relay_keypair_age_secs()
+    })
+}
+
 pub fn known_peers() -> Vec<String> {
     let state = state_arc();
     runtime().block_on(async {
@@ -579,6 +685,9 @@ pub fn metrics() -> NodeMetrics {
             messages_delivered_local: m.messages_delivered_local,
             pending_queue_size: m.pending_queue_size as u64,
             seen_cache_size: m.seen_cache_size as u64,
+            connected_peers: m.connected_peers as u64,
+            max_peers: m.max_peers as u64,
+            peer_cap_rejections: m.peer_cap_rejections,
         }
     })
 }
@@ -848,6 +957,192 @@ pub fn bulletins_for_scope(scope: String) -> Vec<BulletinPost> {
     })
 }
 
+pub fn get_bulletin_subscriptions() -> Vec<String> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state.handle.bulletin_subscriptions().await
+    })
+}
+
+pub fn subscribe_bulletin_scope(scope: String) {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        let _ = state.handle.subscribe_bulletin_scope(scope).await;
+    })
+}
+
+pub fn unsubscribe_bulletin_scope(scope: String) {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        let _ = state.handle.unsubscribe_bulletin_scope(scope).await;
+    })
+}
+
+pub fn is_bulletin_enabled() -> bool {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state.handle.is_bulletin_enabled().await
+    })
+}
+
+pub fn list_scope_keys() -> Vec<ScopeKeyInfo> {
+    with_state(|state| {
+        state
+            .app_node
+            .list_scope_keys()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|sk| ScopeKeyInfo {
+                scope: sk.scope,
+                display_name: sk.display_name,
+                added_at_ms: sk.added_at_ms,
+            })
+            .collect()
+    })
+}
+
+pub fn add_scope_key(invite_json: String) -> Result<(), MyceliumException> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state
+            .app_node
+            .add_scope_key_from_invite(&invite_json)
+            .await
+            .map(|_| ())
+            .map_err(|e| MyceliumException::ChatError {
+                detail: e.to_string(),
+            })
+    })
+}
+
+pub fn create_scope_key(scope: String, display_name: String) {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        let _ = state.app_node.create_scope_key(scope, display_name).await;
+    })
+}
+
+pub fn export_scope_key(scope: String) -> Result<String, MyceliumException> {
+    with_state(|state| {
+        state
+            .app_node
+            .export_scope_key(&scope)
+            .map_err(|e| MyceliumException::ChatError {
+                detail: e.to_string(),
+            })
+    })
+}
+
+pub fn delete_scope_key(scope: String) {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        let _ = state.app_node.delete_scope_key(&scope).await;
+    })
+}
+
+pub fn scope_is_encrypted(scope: String) -> bool {
+    with_state(|state| state.app_node.scope_is_encrypted(&scope).unwrap_or(false))
+}
+
+pub fn start_proximity(
+    profile: PresenceProfileData,
+    ttl_secs: u32,
+) -> Result<(), MyceliumException> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state
+            .app_node
+            .start_proximity(profile_from_data(profile), ttl_secs)
+            .await
+            .map_err(|e| MyceliumException::ChatError {
+                detail: e.to_string(),
+            })
+    })
+}
+
+pub fn stop_proximity() {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state.app_node.stop_proximity().await;
+    })
+}
+
+pub fn nearby_profiles() -> Vec<NearbyProfile> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state
+            .app_node
+            .nearby_profiles()
+            .await
+            .into_iter()
+            .map(entry_to_nearby)
+            .collect()
+    })
+}
+
+pub fn express_proximity_interest(enc_pubkey_hex: String) -> Result<bool, MyceliumException> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state
+            .app_node
+            .express_proximity_interest(enc_pubkey_hex)
+            .await
+            .map_err(|e| MyceliumException::ChatError {
+                detail: e.to_string(),
+            })
+    })
+}
+
+pub fn proximity_messages(since_ms: u64) -> Vec<ProximityMessageData> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state
+            .app_node
+            .proximity_messages(since_ms)
+            .await
+            .into_iter()
+            .map(|m| ProximityMessageData {
+                from_enc_pubkey_hex: m.from_enc_pubkey_hex,
+                body: m.body,
+                received_at_ms: m.received_at_ms,
+            })
+            .collect()
+    })
+}
+
+pub fn is_proximity_active() -> bool {
+    with_state(|state| state.app_node.is_proximity_active())
+}
+
+pub fn send_proximity_message(
+    enc_pubkey_hex: String,
+    message: String,
+) -> Result<(), MyceliumException> {
+    let state = state_arc();
+    runtime().block_on(async {
+        let state = state.read().await;
+        state
+            .app_node
+            .send_proximity_message(enc_pubkey_hex, message)
+            .await
+            .map_err(|e| MyceliumException::ChatError {
+                detail: e.to_string(),
+            })
+    })
+}
+
 pub fn send_mail(to_peer: String, subject: String, body: String) {
     let state = state_arc();
     runtime().block_on(async {
@@ -922,6 +1217,17 @@ pub fn set_energy_state(state: EnergyState) {
     runtime().block_on(async {
         let st = state.read().await;
         let _ = st.handle.send(cmd).await;
+    });
+}
+
+pub fn set_rendezvous_enabled(enabled: bool) {
+    let state = state_arc();
+    runtime().block_on(async {
+        let st = state.read().await;
+        let _ = st
+            .handle
+            .send(NodeCommand::SetRendezvousEnabled(enabled))
+            .await;
     });
 }
 

@@ -65,6 +65,25 @@ fn explicit_storage_key_used_on_android_path() {
 }
 
 #[test]
+fn recreates_enc_key_when_ciphertext_unreadable() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().to_str().unwrap();
+    let vault = SecretVault::open_with_migration(db, None).unwrap();
+    vault.write_secret("enc_x25519", &[0u8; 32]).unwrap();
+    std::fs::write(
+        vault.secrets_dir().join("enc_x25519.enc"),
+        b"not-valid-chacha-ciphertext",
+    )
+    .unwrap();
+
+    let kp = secrets::load_or_create_enc_keypair(db, None).unwrap();
+    assert_eq!(kp.secret_bytes().len(), 32);
+    assert!(vault.secrets_dir().join("enc_x25519.enc").exists());
+    let blob = std::fs::read(vault.secrets_dir().join("enc_x25519.enc")).unwrap();
+    assert_ne!(blob, b"not-valid-chacha-ciphertext");
+}
+
+#[test]
 fn panic_wipe_removes_db_including_secrets() {
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path();

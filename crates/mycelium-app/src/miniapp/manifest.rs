@@ -90,3 +90,48 @@ impl MiniAppManifest {
         self.bulletin_scopes.iter().any(|s| s == scope)
     }
 }
+
+#[cfg(test)]
+mod bulletin_scope_tests {
+    use super::*;
+
+    fn manifest_with_scopes(scopes: Vec<&str>) -> MiniAppManifest {
+        MiniAppManifest {
+            id: "network.mycelium.test".into(),
+            name: "Test".into(),
+            description: "d".into(),
+            version: "0.1.0".into(),
+            developer: "T".into(),
+            developer_peer_id: None,
+            entry: "index.html".into(),
+            icon_base64: None,
+            permissions: vec![Permission::BulletinRead, Permission::BulletinWrite],
+            min_mycelium_version: "0.1.0".into(),
+            accepts_payments: false,
+            payment_address: None,
+            categories: vec![],
+            runtime: "webview".into(),
+            bulletin_scopes: scopes.into_iter().map(String::from).collect(),
+            reproducible_build: None,
+        }
+    }
+
+    #[test]
+    fn meshaid_and_meshmarket_scopes_allowed() {
+        let meshaid = manifest_with_scopes(vec!["mycelium/meshaid/v1"]);
+        assert!(meshaid.allows_bulletin_scope("mycelium/meshaid/v1"));
+        assert!(!meshaid.allows_bulletin_scope("market/food"));
+
+        let meshmarket = manifest_with_scopes(vec![
+            "market/food",
+            "market/tools",
+            "market/shelter",
+            "market/clothing",
+            "market/medical",
+            "market/services",
+            "market/other",
+        ]);
+        assert!(meshmarket.allows_bulletin_scope("market/food"));
+        assert!(!meshmarket.allows_bulletin_scope("mycelium/meshaid/v1"));
+    }
+}

@@ -38,7 +38,8 @@ pub fn validate_data_message_signature(
             }
         }
         Some(_) => {
-            let Ok(author_id) = message.envelope.from_peer.parse::<PeerId>() else {
+            let author = message.envelope.signature_author_peer();
+            let Ok(author_id) = author.parse::<PeerId>() else {
                 return Err(Sd030DropReason::UnparseableAuthor);
             };
             if message.envelope.verify(&author_id) {

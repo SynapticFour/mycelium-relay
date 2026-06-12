@@ -4,6 +4,10 @@ namespace mycelium {
   void init_node(NodeConfig config);
   void stop_node();
   string local_peer_id();
+  /// Ephemeral relay identity (distinct from `local_peer_id()`).
+  string relay_peer_id();
+  /// Seconds since the current relay keypair was created.
+  u64 relay_keypair_age_secs();
   sequence<string> known_peers();
   NodeMetrics metrics();
 
@@ -35,6 +39,30 @@ namespace mycelium {
 
   void post_bulletin(string scope, string title, string body, u64 ttl_secs);
   sequence<BulletinPost> bulletins_for_scope(string scope);
+  sequence<string> get_bulletin_subscriptions();
+  void subscribe_bulletin_scope(string scope);
+  void unsubscribe_bulletin_scope(string scope);
+  boolean is_bulletin_enabled();
+
+  sequence<ScopeKeyInfo> list_scope_keys();
+  [Throws=MyceliumException]
+  void add_scope_key(string invite_json);
+  void create_scope_key(string scope, string display_name);
+  [Throws=MyceliumException]
+  string export_scope_key(string scope);
+  void delete_scope_key(string scope);
+  boolean scope_is_encrypted(string scope);
+
+  [Throws=MyceliumException]
+  void start_proximity(PresenceProfileData profile, u32 ttl_secs);
+  void stop_proximity();
+  sequence<NearbyProfile> nearby_profiles();
+  boolean is_proximity_active();
+  [Throws=MyceliumException]
+  boolean express_proximity_interest(string enc_pubkey_hex);
+  sequence<ProximityMessageData> proximity_messages(u64 since_ms);
+  [Throws=MyceliumException]
+  void send_proximity_message(string enc_pubkey_hex, string message);
 
   void send_mail(string to_peer, string subject, string body);
   sequence<MailMessage> mail_inbox(u32 limit);
@@ -44,6 +72,7 @@ namespace mycelium {
   void set_display_name(string name);
   string display_name();
   void set_energy_state(EnergyState state);
+  void set_rendezvous_enabled(boolean enabled);
   void add_bootstrap_peer(string multiaddr);
   void set_event_callback(NodeEventCallback callback);
 
@@ -108,6 +137,10 @@ dictionary NodeConfig {
   sequence<string> bootstrap_peers;
   /// Optional 64-char hex (32 bytes) master key for at-rest encryption (Android).
   string? storage_key_hex;
+  /// Opt-in relay rendezvous (find/be found on public relay).
+  boolean rendezvous_enabled;
+  /// Bulletin scopes subscribed at startup (opt-in).
+  sequence<string> bulletin_subscriptions;
 };
 
 dictionary NodeMetrics {
@@ -117,6 +150,9 @@ dictionary NodeMetrics {
   u64 messages_delivered_local;
   u64 pending_queue_size;
   u64 seen_cache_size;
+  u64 connected_peers;
+  u64 max_peers;
+  u64 peer_cap_rejections;
 };
 
 dictionary HotWalletConfig {
@@ -230,6 +266,45 @@ dictionary MiniAppPolicyData {
   boolean user_safe_mode;
   boolean revoked;
   boolean strict_csp_eligible;
+};
+
+dictionary PresenceProfileData {
+  string? display_name;
+  string? bio;
+  u8? age;
+  string? gender;
+  string? looking_for;
+  sequence<string> interests;
+  string? photo_base64;
+};
+
+dictionary NearbyProfile {
+  string ephemeral_id;
+  string enc_pubkey_hex;
+  string? display_name;
+  string? bio;
+  u8? age;
+  string? gender;
+  string? looking_for;
+  sequence<string> interests;
+  string? photo_base64;
+  u64 seen_at_ms;
+  boolean has_expired;
+  boolean interest_sent;
+  boolean interest_received;
+  boolean is_mutual;
+};
+
+dictionary ProximityMessageData {
+  string from_enc_pubkey_hex;
+  string body;
+  u64 received_at_ms;
+};
+
+dictionary ScopeKeyInfo {
+  string scope;
+  string display_name;
+  u64 added_at_ms;
 };
 
 enum EnergyState {

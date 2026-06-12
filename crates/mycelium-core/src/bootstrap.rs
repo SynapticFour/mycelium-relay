@@ -11,10 +11,34 @@
 /// Format: libp2p Multiaddr — /dns4/<host>/tcp/<port>/p2p/<peer-id>
 pub const RELAY_PEER_ID: &str = "12D3KooWGv6goWd2fHwcigDjqQm5Dfw28UijwEjnMcYwTpPRPZy6";
 
+/// Public relay / bootstrap infra — not a user device in Connect UI.
+pub fn is_relay_peer(peer_id: &str) -> bool {
+    peer_id.trim() == RELAY_PEER_ID
+}
+
 pub const BOOTSTRAP_PEERS: &[&str] = &[
     "/dns4/mycelium-relay.fly.dev/tcp/4001/p2p/12D3KooWGv6goWd2fHwcigDjqQm5Dfw28UijwEjnMcYwTpPRPZy6",
     "/dns4/mycelium-relay.fly.dev/udp/4001/quic-v1/p2p/12D3KooWGv6goWd2fHwcigDjqQm5Dfw28UijwEjnMcYwTpPRPZy6",
+    // Second regional relay (after deploy, e.g. fly regions add ams):
+    // "/dns4/mycelium-relay-ams.fly.dev/tcp/4001/p2p/12D3KooW...",
 ];
+
+/// Extract the `/p2p/<PeerId>` component from a libp2p multiaddr.
+pub fn peer_id_from_multiaddr(addr: &str) -> Option<String> {
+    let parsed: libp2p::Multiaddr = addr.parse().ok()?;
+    peer_id_from_parsed_multiaddr(&parsed).map(|p| p.to_string())
+}
+
+pub fn peer_id_from_parsed_multiaddr(addr: &libp2p::Multiaddr) -> Option<libp2p::PeerId> {
+    use libp2p::multiaddr::Protocol;
+    addr.iter().find_map(|proto| {
+        if let Protocol::P2p(peer_id) = proto {
+            Some(peer_id)
+        } else {
+            None
+        }
+    })
+}
 
 /// libp2p circuit address to reach `remote_peer_id` via the public relay (NAT traversal).
 pub fn relay_circuit_multiaddr(remote_peer_id: &str) -> Option<String> {
@@ -113,6 +137,43 @@ pub fn load_custom_bootstrap_peers(db_path: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Peers / multiaddrs the user added via QR or Connect (retried until connected).
+const DIAL_PEERS_FILE: &str = "dial_peers.txt";
+
+/// Load persisted dial targets (one multiaddr per line).
+pub fn load_persisted_dial_peers(db_path: &str) -> Vec<String> {
+    let path = std::path::Path::new(db_path).join(DIAL_PEERS_FILE);
+    if !path.exists() {
+        return Vec::new();
+    }
+    std::fs::read_to_string(&path)
+        .map(|content| {
+            content
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                .map(String::from)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Append a dial target if not already stored (QR scan, Connect tab, etc.).
+pub fn persist_dial_peer(db_path: &str, multiaddr: &str) -> std::io::Result<()> {
+    let trimmed = multiaddr.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+    let mut peers = load_persisted_dial_peers(db_path);
+    if peers.iter().any(|p| p == trimmed) {
+        return Ok(());
+    }
+    peers.push(trimmed.to_string());
+    std::fs::create_dir_all(db_path)?;
+    let path = std::path::Path::new(db_path).join(DIAL_PEERS_FILE);
+    std::fs::write(path, peers.join("\n"))
+}
+
 /// Persists custom bootstrap peers to `<db_path>/bootstrap.txt`.
 pub fn save_custom_bootstrap_peers(db_path: &str, peers: &[String]) -> std::io::Result<()> {
     std::fs::create_dir_all(db_path)?;
@@ -129,6 +190,13 @@ pub fn save_custom_bootstrap_peers(db_path: &str, peers: &[String]) -> std::io::
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn peer_id_from_multiaddr_extracts_embedded_id() {
+        let addr = BOOTSTRAP_PEERS[0];
+        let peer_id = peer_id_from_multiaddr(addr).expect("peer id");
+        assert_eq!(peer_id, RELAY_PEER_ID);
+    }
 
     #[test]
     fn relay_circuit_addr_uses_embedded_relay() {

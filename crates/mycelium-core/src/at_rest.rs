@@ -44,8 +44,20 @@ impl SecretVault {
     ) -> anyhow::Result<Self> {
         let vault = Self::open(db_path, storage_key)?;
         for name in ["enc_x25519", "enc_keypair", "ed25519_identity"] {
-            if vault.secrets_dir.join(format!("{name}.enc")).exists() {
-                let _ = vault.read_secret(name);
+            let path = vault.secrets_dir.join(format!("{name}.enc"));
+            if !path.exists() {
+                continue;
+            }
+            match vault.read_secret(name) {
+                Ok(Some(_)) => {}
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(
+                        "dropping unreadable at-rest secret {name} at {:?}: {e}",
+                        path
+                    );
+                    let _ = vault.delete_secret(name);
+                }
             }
         }
         Ok(vault)

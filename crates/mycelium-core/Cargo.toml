@@ -2,7 +2,7 @@
 name = "mycelium-core"
 version.workspace = true
 edition.workspace = true
-license-file.workspace = true
+license.workspace = true
 authors.workspace = true
 
 [dev-dependencies]

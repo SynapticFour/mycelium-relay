@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Mycelium Project
-use axum::{routing::get, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    routing::{get, post},
+    Json, Router,
+};
 use clap::Parser;
+use libp2p::kad::store::MemoryStore;
 use libp2p::{
     futures::StreamExt,
-    identify, noise, ping, relay,
+    identify, kad, noise, ping, relay,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, SwarmBuilder,
 };
+use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
@@ -32,6 +39,7 @@ struct RelayBehaviour {
     relay: relay::Behaviour,
     identify: identify::Behaviour,
     ping: ping::Behaviour,
+    kad: kad::Behaviour<MemoryStore>,
 }
 
 #[derive(Clone)]
@@ -40,21 +48,50 @@ struct StatusState {
     connections: Arc<AtomicU64>,
     reservations: Arc<AtomicU64>,
     connected_peers: Arc<RwLock<HashSet<String>>>,
+    rendezvous_opt_in: Arc<RwLock<HashSet<String>>>,
     started: Instant,
     version: &'static str,
 }
 
-async fn rendezvous(
-    axum::extract::State(s): axum::extract::State<StatusState>,
-) -> Json<serde_json::Value> {
-    let peers: Vec<String> = s
-        .connected_peers
-        .read()
-        .expect("connected_peers lock")
+#[derive(Debug, Deserialize)]
+struct RendezvousPeerBody {
+    peer_id: String,
+}
+
+async fn rendezvous(State(s): State<StatusState>) -> Json<serde_json::Value> {
+    let connected = s.connected_peers.read().expect("connected_peers lock");
+    let opt_in = s.rendezvous_opt_in.read().expect("rendezvous_opt_in lock");
+    let peers: Vec<String> = connected
         .iter()
+        .filter(|p| opt_in.contains(*p))
         .cloned()
         .collect();
     Json(serde_json::json!({ "peers": peers }))
+}
+
+async fn rendezvous_register(
+    State(s): State<StatusState>,
+    Json(body): Json<RendezvousPeerBody>,
+) -> StatusCode {
+    if body.peer_id.is_empty() {
+        return StatusCode::BAD_REQUEST;
+    }
+    s.rendezvous_opt_in
+        .write()
+        .expect("rendezvous_opt_in lock")
+        .insert(body.peer_id);
+    StatusCode::NO_CONTENT
+}
+
+async fn rendezvous_unregister(
+    State(s): State<StatusState>,
+    Json(body): Json<RendezvousPeerBody>,
+) -> StatusCode {
+    s.rendezvous_opt_in
+        .write()
+        .expect("rendezvous_opt_in lock")
+        .remove(&body.peer_id);
+    StatusCode::NO_CONTENT
 }
 
 async fn status(
@@ -104,11 +141,13 @@ async fn main() -> anyhow::Result<()> {
     let reservations = Arc::new(AtomicU64::new(0));
 
     let connected_peers = Arc::new(RwLock::new(HashSet::new()));
+    let rendezvous_opt_in = Arc::new(RwLock::new(HashSet::new()));
     let state = StatusState {
         peer_id: local_peer_id.to_string(),
         connections: connections.clone(),
         reservations: reservations.clone(),
         connected_peers: connected_peers.clone(),
+        rendezvous_opt_in: rendezvous_opt_in.clone(),
         started: Instant::now(),
         version: env!("CARGO_PKG_VERSION"),
     };
@@ -116,6 +155,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(status))
         .route("/health", get(health))
         .route("/rendezvous", get(rendezvous))
+        .route("/rendezvous/register", post(rendezvous_register))
+        .route("/rendezvous/unregister", post(rendezvous_unregister))
         .with_state(state);
     let status_port = args.status_port;
     tokio::spawn(async move {
@@ -156,6 +197,19 @@ async fn main() -> anyhow::Result<()> {
                 ),
                 identify,
                 ping: ping::Behaviour::new(ping::Config::new()),
+                kad: {
+                    let local_peer_id = key.public().to_peer_id();
+                    let mut config =
+                        kad::Config::new(libp2p::StreamProtocol::new("/mycelium/kad/1.0.0"));
+                    config.set_query_timeout(Duration::from_secs(60));
+                    let mut behaviour = kad::Behaviour::with_config(
+                        local_peer_id,
+                        MemoryStore::new(local_peer_id),
+                        config,
+                    );
+                    behaviour.set_mode(Some(kad::Mode::Server));
+                    behaviour
+                },
             })
         })?
         .build();
@@ -206,6 +260,13 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => {}
             },
+            SwarmEvent::Behaviour(RelayBehaviourEvent::Kad(kad::Event::RoutingUpdated {
+                peer,
+                ..
+            })) => {
+                info!("kad routing table: {peer}");
+            }
+            SwarmEvent::Behaviour(RelayBehaviourEvent::Kad(_)) => {}
             SwarmEvent::Behaviour(_) => {}
             _ => {}
         }

@@ -102,9 +102,20 @@ fn validate_entry_html(manifest: &MiniAppManifest, bundle: &MiniAppBundle) -> an
 
 fn validate_html_content(html: &str, label: &str) -> anyhow::Result<()> {
     let lower = html.to_lowercase();
-    for needle in ["javascript:", "vbscript:", "data:text/html", "file:"] {
+    for needle in ["javascript:", "vbscript:", "data:text/html", "file://"] {
         if lower.contains(needle) {
             anyhow::bail!("{label} contains forbidden URL scheme ({needle})");
+        }
+    }
+    for token in [
+        "\"file:",
+        "'file:",
+        "(file:",
+        " href=\"file:",
+        " src=\"file:",
+    ] {
+        if lower.contains(token) {
+            anyhow::bail!("{label} contains forbidden URL scheme (file:)");
         }
     }
     if lower.contains("<base") {
@@ -145,6 +156,13 @@ mod tests {
         let bundle = MiniAppBundle { manifest, files };
         let archive = b"fake-archive";
         (bundle, archive.to_vec())
+    }
+
+    #[test]
+    fn accepts_profile_object_key() {
+        let (bundle, archive) =
+            minimal_bundle("<html><script>const x = { profile: {} };</script></html>");
+        scan_bundle(&bundle, &archive).unwrap();
     }
 
     #[test]

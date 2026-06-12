@@ -72,6 +72,12 @@ impl MeshTransport for SimTransport {
         Ok(())
     }
 
+    async fn remember_and_dial(&mut self, _multiaddr: String) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn redial_stored_targets(&mut self) {}
+
     async fn send_direct(&mut self, to_peer: String, message: WireMessage) -> anyhow::Result<()> {
         self.action_tx.send(SimAction::SendDirect {
             from_peer: self.local_peer.clone(),

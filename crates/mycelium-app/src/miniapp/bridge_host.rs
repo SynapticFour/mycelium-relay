@@ -19,6 +19,7 @@ use crate::miniapp::storage_quota::{
 };
 use crate::miniapp::AppStore;
 use crate::node::AppNode;
+use crate::proximity::PresenceProfile;
 use crate::storage::AppStorage;
 
 /// Per-app broadcast counter: (window_start_ms, count).
@@ -343,6 +344,11 @@ impl BridgeHost {
                     .and_then(|x| x.as_str())
                     .ok_or_else(|| "missing scope".to_string())?;
                 self.require_bulletin_scope(scope)?;
+                let _ = self
+                    .app_node
+                    .node_handle()
+                    .subscribe_bulletin_scope(scope.to_string())
+                    .await;
                 let posts = self
                     .app_node
                     .bulletins_for_scope(scope)
@@ -391,6 +397,100 @@ impl BridgeHost {
                 self.require_permission(Permission::PeerDiscovery)?;
                 let peers = self.app_node.node_handle().known_peers().await;
                 Ok(json!(peers))
+            }
+
+            "proximity.start" => {
+                self.require_permission(Permission::PeerDiscovery)?;
+                self.require_permission(Permission::Messaging)?;
+                let profile = parse_presence_profile(args)?;
+                let ttl = args.get("ttl_secs").and_then(json_as_u64).unwrap_or(300) as u32;
+                self.app_node
+                    .start_proximity(profile, ttl)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(json!("ok"))
+            }
+
+            "proximity.stop" => {
+                self.require_permission(Permission::PeerDiscovery)?;
+                self.app_node.stop_proximity().await;
+                Ok(json!("ok"))
+            }
+
+            "proximity.nearby" => {
+                self.require_permission(Permission::PeerDiscovery)?;
+                let profiles = self.app_node.nearby_profiles().await;
+                let list: Vec<Value> = profiles
+                    .into_iter()
+                    .map(|entry| {
+                        let s = entry.signal;
+                        json!({
+                            "ephemeral_id": s.ephemeral_id.to_string(),
+                            "enc_pubkey_hex": s.enc_pubkey_hex,
+                            "display_name": s.profile.display_name,
+                            "bio": s.profile.bio,
+                            "age": s.profile.age,
+                            "gender": s.profile.gender,
+                            "looking_for": s.profile.looking_for,
+                            "interests": s.profile.interests,
+                            "photo_base64": s.profile.photo_base64,
+                            "seen_at_ms": s.created_at_ms,
+                            "has_expired": s.is_expired(),
+                            "interest_sent": entry.interest_sent,
+                            "interest_received": entry.interest_received,
+                            "is_mutual": entry.is_mutual,
+                        })
+                    })
+                    .collect();
+                Ok(Value::Array(list))
+            }
+
+            "proximity.connect" => {
+                self.require_permission(Permission::PeerDiscovery)?;
+                let enc_pubkey_hex = args
+                    .get("enc_pubkey_hex")
+                    .and_then(|x| x.as_str())
+                    .ok_or_else(|| "missing enc_pubkey_hex".to_string())?;
+                let is_mutual = self
+                    .app_node
+                    .express_proximity_interest(enc_pubkey_hex.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(json!({ "is_mutual": is_mutual }))
+            }
+
+            "proximity.messages" => {
+                self.require_permission(Permission::Messaging)?;
+                let since_ms = args.get("since_ms").and_then(json_as_u64).unwrap_or(0);
+                let messages = self.app_node.proximity_messages(since_ms).await;
+                let list: Vec<Value> = messages
+                    .into_iter()
+                    .map(|m| {
+                        json!({
+                            "from_enc_pubkey_hex": m.from_enc_pubkey_hex,
+                            "body": m.body,
+                            "received_at_ms": m.received_at_ms,
+                        })
+                    })
+                    .collect();
+                Ok(Value::Array(list))
+            }
+
+            "proximity.send_message" => {
+                self.require_permission(Permission::Messaging)?;
+                let enc_pubkey_hex = args
+                    .get("enc_pubkey_hex")
+                    .and_then(|x| x.as_str())
+                    .ok_or_else(|| "missing enc_pubkey_hex".to_string())?;
+                let message = args
+                    .get("message")
+                    .and_then(|x| x.as_str())
+                    .ok_or_else(|| "missing message".to_string())?;
+                self.app_node
+                    .send_proximity_message(enc_pubkey_hex.to_string(), message.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(json!("ok"))
             }
 
             "util.now" => Ok(json!(mycelium_core::data::now_ms())),
@@ -453,4 +553,36 @@ fn json_as_u64(v: &Value) -> Option<u64> {
         return u64::try_from(n).ok();
     }
     None
+}
+
+fn parse_presence_profile(args: &Value) -> Result<PresenceProfile, String> {
+    fn opt_str(v: &Value, key: &str) -> Option<String> {
+        v.get(key)
+            .and_then(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+    }
+    let interests = args
+        .get("interests")
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    let age = args.get("age").and_then(|v| {
+        v.as_u64()
+            .and_then(|n| u8::try_from(n).ok())
+            .or_else(|| v.as_i64().and_then(|n| u8::try_from(n).ok()))
+    });
+    Ok(PresenceProfile {
+        display_name: opt_str(args, "display_name"),
+        bio: opt_str(args, "bio"),
+        age,
+        gender: opt_str(args, "gender"),
+        looking_for: opt_str(args, "looking_for"),
+        interests,
+        photo_base64: opt_str(args, "photo_base64"),
+    })
 }

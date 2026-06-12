@@ -187,7 +187,7 @@
     {/if}
     <p class="section-label">Contacts</p>
     {#if acceptedContacts.length === 0}
-      <p class="empty-hint">No contacts yet. Scan a QR code on the Peers tab.</p>
+      <p class="empty-hint">No contacts yet. Connect a device on the Connect tab (scan QR or paste invite).</p>
     {/if}
     {#each acceptedContacts as c}
       <button

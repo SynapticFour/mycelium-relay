@@ -3,6 +3,7 @@
 use crate::contacts::{Contact, ContactStatus};
 use crate::envelope::{BulletinPost, ChatMessage, MailMessage};
 use crate::groups::Group;
+use crate::scope_key::ScopeKey;
 use mycelium_core::data::now_ms;
 use uuid::Uuid;
 
@@ -315,6 +316,39 @@ impl AppStorage {
         for k in keys {
             tree.remove(k)?;
         }
+        Ok(())
+    }
+
+    pub fn save_scope_key(&self, sk: &ScopeKey) -> anyhow::Result<()> {
+        let tree = self.db.open_tree("scope_keys")?;
+        tree.insert(sk.scope.as_bytes(), serde_json::to_vec(sk)?.as_slice())?;
+        Ok(())
+    }
+
+    pub fn get_scope_key(&self, scope: &str) -> anyhow::Result<Option<ScopeKey>> {
+        let tree = self.db.open_tree("scope_keys")?;
+        Ok(match tree.get(scope.as_bytes())? {
+            Some(bytes) => Some(serde_json::from_slice(&bytes)?),
+            None => None,
+        })
+    }
+
+    pub fn all_scope_keys(&self) -> anyhow::Result<Vec<ScopeKey>> {
+        let tree = self.db.open_tree("scope_keys")?;
+        let mut keys = Vec::new();
+        for item in tree.iter() {
+            let (_, v) = item?;
+            if let Ok(sk) = serde_json::from_slice::<ScopeKey>(&v) {
+                keys.push(sk);
+            }
+        }
+        keys.sort_by_key(|sk| sk.added_at_ms);
+        Ok(keys)
+    }
+
+    pub fn delete_scope_key(&self, scope: &str) -> anyhow::Result<()> {
+        let tree = self.db.open_tree("scope_keys")?;
+        tree.remove(scope.as_bytes())?;
         Ok(())
     }
 }

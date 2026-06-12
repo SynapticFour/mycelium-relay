@@ -29,6 +29,7 @@ pub struct SimNodeSpec {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ScheduledAction {
     Deliver {
         to_peer: String,
@@ -352,6 +353,9 @@ impl SimulationRunner {
             display_name: None,
             storage_key: None,
             max_relay_fanout: 3,
+            rendezvous_enabled: true,
+            bulletin_subscriptions: Vec::new(),
+            max_peers: 50,
         };
         let (node_runner, handle) = NodeRunner::new_with_transport(config, Box::new(transport))?;
         let runner_task = tokio::spawn(async move { node_runner.run().await });

@@ -10,6 +10,7 @@
   let displayName = $state('');
   let energyState = $state('Active');
   let bootstrapPeers = $state('');
+  let rendezvousEnabled = $state(false);
   let storeStats = $state({ count: 0, oldest_ms: 0 });
   let gcResult = $state(null);
   let saved = $state(false);
@@ -21,6 +22,7 @@
     const settings = await invoke('get_settings');
     displayName = settings.display_name ?? '';
     energyState = settings.energy_state ?? 'Active';
+    rendezvousEnabled = settings.rendezvous_enabled ?? true;
     storeStats = await invoke('get_store_stats');
     const custom = await invoke('get_custom_bootstrap_peers');
     bootstrapPeers = custom.join('\n');
@@ -29,6 +31,7 @@
   async function save() {
     await invoke('set_display_name', { name: displayName });
     await invoke('set_energy_state', { energyState });
+    await invoke('set_rendezvous_enabled', { enabled: rendezvousEnabled });
     await invoke('set_custom_bootstrap_peers', {
       peers: bootstrapPeers
         .split('\n')
@@ -94,6 +97,14 @@
       ></textarea>
       <small>One per line. Leave empty to use default relay.</small>
     </label>
+    <label class="checkbox-row">
+      <input type="checkbox" bind:checked={rendezvousEnabled} />
+      Relay discovery (opt-in)
+    </label>
+    <small class="hint">
+      When enabled, your device appears on the public relay rendezvous list and
+      auto-dials other opted-in peers. Chat still requires accepted contacts.
+    </small>
   </section>
 
   <section>

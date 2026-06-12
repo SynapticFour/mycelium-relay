@@ -137,7 +137,8 @@ impl IngestPipeline {
             return Ok(false);
         }
         if verify {
-            let Ok(peer_id) = msg.envelope.from_peer.parse::<libp2p::PeerId>() else {
+            let author = msg.envelope.signature_author_peer();
+            let Ok(peer_id) = author.parse::<libp2p::PeerId>() else {
                 return Ok(false);
             };
             if !msg.envelope.verify_or_transition(&peer_id) {

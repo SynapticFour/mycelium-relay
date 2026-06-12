@@ -2,7 +2,7 @@
 name = "miniapp-sdk"
 version.workspace = true
 edition.workspace = true
-license-file.workspace = true
+license.workspace = true
 description = "CLI tools for Mycelium mini-app bundles (lint, hash)"
 
 [[bin]]
