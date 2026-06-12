@@ -1159,9 +1159,11 @@ mod dispatch_tests {
         app_node.dispatch_incoming(&dm).await;
 
         let rows = store.browse_listings().expect("browse");
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].manifest.id, listing.manifest.id);
-        assert_eq!(rows[0].manifest.version, listing.manifest.version);
+        let cached = rows
+            .iter()
+            .find(|r| r.manifest.id == listing.manifest.id)
+            .expect("dispatched listing cached");
+        assert_eq!(cached.manifest.version, listing.manifest.version);
     }
 
     #[test]

@@ -848,6 +848,7 @@ async fn miniapp_preview_install(
         "has_inline_script": p.has_inline_script,
         "strict_csp_eligible": p.strict_csp_eligible,
         "reproducible_attested": p.reproducible_attested,
+        "bundle_signature_ok": p.bundle_signature_ok,
     }))
 }
 
@@ -929,6 +930,7 @@ async fn miniapp_get_entry_html(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "entry missing".to_string())?;
     let body = String::from_utf8(bytes).map_err(|e| e.to_string())?;
+    let csp_meta = mycelium_app::miniapp::csp::meta_tag(&script_nonce);
     let session = mycelium_app::miniapp::issue_session(&app_id);
     let bridge = mycelium_app::miniapp::bridge_api_js_source();
     let network_block = format!(
@@ -955,7 +957,7 @@ window.__mycelium_native_call = function (json) {{
 "#,
         session_json = serde_json::to_string(&session).map_err(|e| e.to_string())?
     );
-    Ok(format!("{network_block}\n{shim}{bridge}</script>\n{body}"))
+    Ok(format!("{csp_meta}\n{network_block}\n{shim}{bridge}</script>\n{body}"))
 }
 
 #[tauri::command]

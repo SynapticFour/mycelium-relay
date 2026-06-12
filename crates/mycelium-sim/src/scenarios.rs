@@ -26,9 +26,9 @@ pub struct BloomSyncEfficiencyReport {
 
 pub fn partition_and_merge(seed: u64) -> ScenarioReport {
     let mut sim = SimulationRunner::new(0, seed);
-    let _ = sim.build_transport("A".to_string(), 64 * 1024);
-    let _ = sim.build_transport("B".to_string(), 64 * 1024);
-    let _ = sim.build_transport("C".to_string(), 64 * 1024);
+    let _ = sim.build_transport("A".to_string(), None, 64 * 1024);
+    let _ = sim.build_transport("B".to_string(), None, 64 * 1024);
+    let _ = sim.build_transport("C".to_string(), None, 64 * 1024);
     sim.set_link("A".to_string(), "B".to_string(), LinkProfile::default());
     sim.set_link("B".to_string(), "C".to_string(), LinkProfile::default());
     sim.set_link("A".to_string(), "C".to_string(), LinkProfile::default());
@@ -47,8 +47,8 @@ pub fn partition_and_merge(seed: u64) -> ScenarioReport {
 
 pub fn high_message_load(seed: u64) -> ScenarioReport {
     let mut sim = SimulationRunner::new(0, seed);
-    let _ = sim.build_transport("A".to_string(), 8 * 1024);
-    let _ = sim.build_transport("B".to_string(), 8 * 1024);
+    let _ = sim.build_transport("A".to_string(), None, 8 * 1024);
+    let _ = sim.build_transport("B".to_string(), None, 8 * 1024);
     sim.set_link(
         "A".to_string(),
         "B".to_string(),
@@ -72,8 +72,8 @@ pub fn high_message_load(seed: u64) -> ScenarioReport {
 
 pub fn node_churn(seed: u64) -> ScenarioReport {
     let mut sim = SimulationRunner::new(0, seed);
-    let _ = sim.build_transport("A".to_string(), 32 * 1024);
-    let _ = sim.build_transport("B".to_string(), 32 * 1024);
+    let _ = sim.build_transport("A".to_string(), None, 32 * 1024);
+    let _ = sim.build_transport("B".to_string(), None, 32 * 1024);
     sim.set_link("A".to_string(), "B".to_string(), LinkProfile::default());
     for i in 0..8 {
         let at = 200 + i * 300;
@@ -95,7 +95,7 @@ pub fn bloom_sync_efficiency(seed: u64) -> ScenarioReport {
     let mut sim = SimulationRunner::new(0, seed);
     for i in 0..10 {
         let peer = format!("N{i}");
-        let _ = sim.build_transport(peer, 64 * 1024);
+        let _ = sim.build_transport(peer, None, 64 * 1024);
     }
     let _eff = bloom_sync_efficiency_compare(10, 50);
     report(sim.metrics(), 1)
@@ -122,8 +122,8 @@ pub fn bloom_sync_efficiency_compare(
 
 pub fn hop_limit_containment(seed: u64) -> ScenarioReport {
     let mut sim = SimulationRunner::new(0, seed);
-    let _ = sim.build_transport("A".to_string(), 64 * 1024);
-    let _ = sim.build_transport("B".to_string(), 64 * 1024);
+    let _ = sim.build_transport("A".to_string(), None, 64 * 1024);
+    let _ = sim.build_transport("B".to_string(), None, 64 * 1024);
     report(sim.metrics(), 1)
 }
 

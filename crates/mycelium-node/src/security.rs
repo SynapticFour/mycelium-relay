@@ -6,9 +6,9 @@ use libp2p::PeerId;
 use mycelium_core::transport::DirectMessage;
 use std::collections::HashMap;
 
-/// Expiry of the unsigned-message grace window (Unix ms).
-/// Set to SIG v1 launch (2026-05-22 UTC) + 30 days.
-pub const UNSIGNED_GRACE_PERIOD_UNTIL_MS: u64 = 1_782_022_651_000;
+/// Unsigned `WireMessage::Data` are rejected when `now_ms >=` this value.
+/// Set to `0` — no grace period (public beta gate SD-030).
+pub const UNSIGNED_GRACE_PERIOD_UNTIL_MS: u64 = 0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sd030DropReason {
@@ -17,6 +17,8 @@ pub enum Sd030DropReason {
     UnparseableAuthor,
 }
 
+/// Gossip relay bodies are unsigned by design: inner payload carries its own auth
+/// (E2E group, signed store listing, enc1 bulletin). Only these exact tags bypass SD-030.
 pub fn is_gossip_relay_body(body: &str) -> bool {
     body == "[mycelium:group]" || body == "[appstore]"
 }
@@ -106,9 +108,12 @@ mod tests {
     }
 
     #[test]
-    fn unsigned_allowed_during_grace_period() {
+    fn unsigned_rejected_immediately() {
         let msg = sample_message(false, "hello");
-        assert!(validate_data_message_signature(&msg, 0).is_ok());
+        assert_eq!(
+            validate_data_message_signature(&msg, 0),
+            Err(Sd030DropReason::NoSignature)
+        );
     }
 
     #[test]

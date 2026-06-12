@@ -169,11 +169,19 @@ fn resolve_master_key(
     if let Ok(k) = load_master_from_keyring(db_path) {
         return Ok(k);
     }
-    tracing::warn!(
-        "at-rest: keyring unavailable for {}, using file-based fallback key",
-        db_path
-    );
-    load_or_create_file_fallback_key(db_path)
+    // Existing installs may have a persisted random fallback key (migration).
+    if let Some(k) = read_file_fallback_key_if_exists(db_path) {
+        tracing::warn!(
+            "at-rest: OS keyring unavailable for {db_path}; using existing file fallback key — \
+             install a keyring or set a passphrase vault (SD-131)"
+        );
+        return Ok(k);
+    }
+    anyhow::bail!(
+        "at-rest: OS keyring unavailable and no existing vault key for {db_path}. \
+         Refusing to create a weak file-based master key (SD-131). \
+         On desktop, enable the OS credential store or provide storage_key."
+    )
 }
 
 fn keyring_account(db_path: &str) -> String {
@@ -200,6 +208,7 @@ fn load_master_from_keyring(db_path: &str) -> anyhow::Result<[u8; KEY_LEN]> {
 }
 
 /// Loads a persisted random key or creates one (per device, survives restarts).
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn load_or_create_file_fallback_key(db_path: &str) -> anyhow::Result<[u8; KEY_LEN]> {
     let key_path = Path::new(db_path)
         .join(".secrets")
@@ -335,7 +344,9 @@ mod tests {
     fn vault_write_read_delete() {
         let dir = tempfile::tempdir().unwrap();
         let db = dir.path().to_str().unwrap();
-        let vault = SecretVault::open_with_migration(db, None).unwrap();
+        let mut master = [0u8; KEY_LEN];
+        rand::thread_rng().fill_bytes(&mut master);
+        let vault = SecretVault::open_with_migration(db, Some(master)).unwrap();
         vault.write_secret("test", b"hello").unwrap();
         assert_eq!(
             vault.read_secret("test").unwrap().as_deref(),
@@ -355,6 +366,7 @@ mod tests {
             .write_secret("ed25519_identity", b"legacy-identity")
             .unwrap();
 
+        let _ = load_or_create_file_fallback_key(db).unwrap();
         let vault = SecretVault::open_with_migration(db, None).unwrap();
         let recovered = vault
             .read_secret("ed25519_identity")
@@ -391,7 +403,10 @@ mod tests {
     fn panic_wipe_removes_secrets_dir() {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path();
-        let vault = SecretVault::open_with_migration(db_path.to_str().unwrap(), None).unwrap();
+        let mut master = [0u8; KEY_LEN];
+        rand::thread_rng().fill_bytes(&mut master);
+        let vault =
+            SecretVault::open_with_migration(db_path.to_str().unwrap(), Some(master)).unwrap();
         vault.write_secret("identity", b"x").unwrap();
         assert!(vault.secrets_dir().exists());
         std::fs::remove_dir_all(db_path).unwrap();

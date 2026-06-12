@@ -70,6 +70,7 @@ pub struct SimulationRunner {
 }
 
 pub struct SimNode {
+    pub peer_id: String,
     pub handle: NodeHandle,
     pub runner_task: tokio::task::JoinHandle<anyhow::Result<()>>,
 }
@@ -114,11 +115,13 @@ impl SimulationRunner {
     pub fn build_transport(
         &mut self,
         peer_id: String,
+        keypair: Option<libp2p::identity::Keypair>,
         bandwidth_bytes_per_sec: u64,
     ) -> SimTransport {
         let event_rx = self.register_node(peer_id.clone(), bandwidth_bytes_per_sec);
         SimTransport::new(
             peer_id,
+            keypair,
             self.links.clone(),
             event_rx,
             self.action_tx.clone(),
@@ -333,13 +336,16 @@ impl SimulationRunner {
 
     pub async fn spawn_sim_node(
         &mut self,
-        peer_id: String,
         bandwidth: u64,
     ) -> anyhow::Result<SimNode> {
-        let transport = self.build_transport(peer_id.clone(), bandwidth);
-        let db_path = sim_db_path(self.sim_run_id, &peer_id);
+        let idx = self.nodes.len();
+        let db_path = sim_db_path(self.sim_run_id, &format!("n{idx}"));
         let _ = std::fs::remove_dir_all(&db_path);
         std::fs::create_dir_all(&db_path)?;
+        let keypair =
+            mycelium_node::load_or_create_keypair(&format!("{}/identity", db_path.display()))?;
+        let peer_id = keypair.public().to_peer_id().to_string();
+        let transport = self.build_transport(peer_id.clone(), Some(keypair), bandwidth);
         let config = NodeConfig {
             listen_addr: "/ip4/0.0.0.0/tcp/0"
                 .parse()
@@ -360,6 +366,7 @@ impl SimulationRunner {
         let (node_runner, handle) = NodeRunner::new_with_transport(config, Box::new(transport))?;
         let runner_task = tokio::spawn(async move { node_runner.run().await });
         Ok(SimNode {
+            peer_id,
             handle,
             runner_task,
         })
@@ -477,28 +484,16 @@ mod tests {
     #[tokio::test]
     async fn three_hop_delivery() {
         let mut sim = SimulationRunner::new(0, 42);
-        let _ = sim.register_node("A".to_string(), 64 * 1024);
-        let _ = sim.register_node("B".to_string(), 64 * 1024);
-        let _ = sim.register_node("C".to_string(), 64 * 1024);
-        let a = sim
-            .spawn_sim_node("A".to_string(), 64 * 1024)
-            .await
-            .expect("spawn a");
-        let b = sim
-            .spawn_sim_node("B".to_string(), 64 * 1024)
-            .await
-            .expect("spawn b");
-        let c = sim
-            .spawn_sim_node("C".to_string(), 64 * 1024)
-            .await
-            .expect("spawn c");
+        let a = sim.spawn_sim_node(64 * 1024).await.expect("spawn a");
+        let b = sim.spawn_sim_node(64 * 1024).await.expect("spawn b");
+        let c = sim.spawn_sim_node(64 * 1024).await.expect("spawn c");
 
-        sim.set_link("A".to_string(), "B".to_string(), LinkProfile::default());
-        sim.set_link("B".to_string(), "C".to_string(), LinkProfile::default());
+        sim.set_link(a.peer_id.clone(), b.peer_id.clone(), LinkProfile::default());
+        sim.set_link(b.peer_id.clone(), c.peer_id.clone(), LinkProfile::default());
 
         a.handle
             .send(mycelium_node::NodeCommand::SendDirect {
-                to_peer: "C".to_string(),
+                to_peer: c.peer_id.clone(),
                 body: "hello from A".to_string(),
             })
             .await

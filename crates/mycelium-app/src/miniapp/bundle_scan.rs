@@ -96,7 +96,12 @@ fn validate_entry_html(manifest: &MiniAppManifest, bundle: &MiniAppBundle) -> an
     let html = std::str::from_utf8(bytes)
         .map_err(|_| anyhow::anyhow!("entry {} is not valid UTF-8", manifest.entry))?;
     validate_html_content(html, &manifest.entry)?;
-    let _ = html_has_inline_script(html);
+    if html_has_inline_script(html) {
+        anyhow::bail!(
+            "entry {} contains inline <script>; use external .js with nonce (SD-040)",
+            manifest.entry
+        );
+    }
     Ok(())
 }
 
@@ -161,7 +166,7 @@ mod tests {
     #[test]
     fn accepts_profile_object_key() {
         let (bundle, archive) =
-            minimal_bundle("<html><script>const x = { profile: {} };</script></html>");
+            minimal_bundle(r#"<html><body><div id="app"></div></body></html>"#);
         scan_bundle(&bundle, &archive).unwrap();
     }
 

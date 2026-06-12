@@ -13,6 +13,9 @@ path = "src/main.rs"
 anyhow.workspace = true
 blake3.workspace = true
 clap.workspace = true
+libp2p = { workspace = true, features = ["ed25519"] }
 mycelium-app = { path = "../mycelium-app" }
 serde_json.workspace = true
 serde = { workspace = true, features = ["derive"] }
+tempfile = "3"
+zip = "0.6"

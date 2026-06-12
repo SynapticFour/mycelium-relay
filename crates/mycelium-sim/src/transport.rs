@@ -23,6 +23,7 @@ pub enum SimAction {
 
 pub struct SimTransport {
     local_peer: String,
+    keypair: Option<libp2p::identity::Keypair>,
     links: Arc<Mutex<HashMap<(String, String), LinkProfile>>>,
     event_rx: mpsc::UnboundedReceiver<TransportEvent>,
     action_tx: mpsc::UnboundedSender<SimAction>,
@@ -31,12 +32,14 @@ pub struct SimTransport {
 impl SimTransport {
     pub fn new(
         local_peer: String,
+        keypair: Option<libp2p::identity::Keypair>,
         links: Arc<Mutex<HashMap<(String, String), LinkProfile>>>,
         event_rx: mpsc::UnboundedReceiver<TransportEvent>,
         action_tx: mpsc::UnboundedSender<SimAction>,
     ) -> Self {
         Self {
             local_peer,
+            keypair,
             links,
             event_rx,
             action_tx,
@@ -65,7 +68,7 @@ impl MeshTransport for SimTransport {
     }
 
     fn local_keypair(&self) -> Option<libp2p::identity::Keypair> {
-        None
+        self.keypair.clone()
     }
 
     async fn dial_peer(&mut self, _multiaddr: String) -> anyhow::Result<()> {

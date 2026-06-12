@@ -133,6 +133,9 @@
         {#if pendingInstall.preview.listing_signature_ok}
           <p class="ok">Signed listing</p>
         {/if}
+        {#if pendingInstall.preview.bundle_signature_ok}
+          <p class="ok">Developer bundle signature verified</p>
+        {/if}
         {#if pendingInstall.preview.has_inline_script}
           <p class="warn">This app uses inline scripts (higher XSS risk).</p>
         {/if}

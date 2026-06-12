@@ -87,6 +87,8 @@ namespace mycelium {
   MiniAppInstallPreview preview_miniapp_install(bytes bundle_data);
   [Throws=MyceliumException]
   MiniAppInfo install_app(bytes bundle_data, string? listing_app_id, boolean allow_sideload, boolean allow_downgrade);
+  [Throws=MyceliumException]
+  MiniAppInfo install_official_bundle(string app_id);
   void uninstall_app(string app_id);
   bytes? get_app_file(string app_id, string path);
   sequence<AppStoreListing> browse_app_store();
@@ -247,6 +249,7 @@ dictionary MiniAppInstallPreview {
   boolean is_downgrade;
   boolean has_inline_script;
   boolean strict_csp_eligible;
+  boolean bundle_signature_ok;
   boolean reproducible_attested;
 };
 

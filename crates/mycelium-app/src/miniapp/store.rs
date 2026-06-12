@@ -106,10 +106,13 @@ impl AppStore {
         if let Err(e) = super::revocation::merge_bundled_defaults(&store.db) {
             tracing::warn!("bundled miniapp revocations merge failed: {e}");
         }
+        if let Err(e) = super::bundled_listings::merge_bundled_listings(&store) {
+            tracing::warn!("bundled miniapp listings merge failed: {e}");
+        }
         Ok(store)
     }
 
-    pub fn install(&self, bundle_bytes: &[u8]) -> anyhow::Result<MiniAppManifest> {
+    pub(crate) fn install(&self, bundle_bytes: &[u8]) -> anyhow::Result<MiniAppManifest> {
         let bundle = super::bundle::MiniAppBundle::load_from_bytes(bundle_bytes)?;
         if bundle.total_size() > 10 * 1024 * 1024 {
             anyhow::bail!("app bundle exceeds 10 MB limit");

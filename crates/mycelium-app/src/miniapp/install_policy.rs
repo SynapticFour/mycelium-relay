@@ -43,6 +43,8 @@ pub struct InstallPreview {
     pub has_inline_script: bool,
     /// Host may omit CSP `unsafe-inline` when false (H05).
     pub strict_csp_eligible: bool,
+    /// Sidecar Ed25519 signature over bundle hash (see [`super::bundle_signature`]).
+    pub bundle_signature_ok: bool,
     /// Manifest `reproducible_build.attested_bundle_hash` matches content attestation hash (H23).
     pub reproducible_attested: bool,
 }
@@ -122,6 +124,8 @@ impl AppStore {
 
         let content_hash = content_attestation_hash(&bundle)?;
         let reproducible_attested = manifest.reproducible_attests_hash(&content_hash);
+        let bundle_signature_ok =
+            super::bundle_signature::verify_bundle_developer_signature(&bundle, bundle_bytes)?;
 
         Ok(InstallPreview {
             manifest,
@@ -132,6 +136,7 @@ impl AppStore {
             is_downgrade,
             has_inline_script,
             strict_csp_eligible: !has_inline_script,
+            bundle_signature_ok,
             reproducible_attested,
         })
     }
@@ -162,7 +167,16 @@ impl AppStore {
             (InstallTrust::SideloadAcknowledged, InstallTrustLevel::HashMismatch) => {
                 anyhow::bail!("bundle hash does not match cached store listing");
             }
-            (InstallTrust::SideloadAcknowledged, _) => {}
+            (InstallTrust::SideloadAcknowledged, InstallTrustLevel::VerifiedListing) => {}
+            (InstallTrust::SideloadAcknowledged, InstallTrustLevel::MatchingListingHash) => {}
+            (InstallTrust::SideloadAcknowledged, InstallTrustLevel::SideloadOnly) => {
+                if !preview.bundle_signature_ok {
+                    anyhow::bail!(
+                        "sideload requires valid {sig} signed by developer_peer_id (SD-041)",
+                        sig = super::bundle_signature::BUNDLE_SIG_FILE
+                    );
+                }
+            }
         }
 
         if preview.is_downgrade && !allow_downgrade {
@@ -190,6 +204,7 @@ impl AppStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::miniapp::bundle_signature::{self, BundleSignatureFile};
     use crate::miniapp::manifest::Permission;
     use tempfile::tempdir;
 
@@ -209,17 +224,66 @@ mod tests {
         zip_buf
     }
 
+    fn sample_signed_sideload_zip(manifest_json: &str, entry_html: &str) -> Vec<u8> {
+        use libp2p::identity::Keypair;
+        use std::io::{Cursor, Read, Write};
+        use zip::write::FileOptions;
+
+        let keypair = Keypair::generate_ed25519();
+        let peer_id = keypair.public().to_peer_id().to_string();
+        let mut manifest: MiniAppManifest = serde_json::from_str(manifest_json).unwrap();
+        manifest.developer_peer_id = Some(peer_id);
+        let manifest_json = serde_json::to_string(&manifest).unwrap();
+
+        let base = sample_zip(&manifest_json, entry_html);
+        let sig = BundleSignatureFile::sign(&base, &keypair).unwrap();
+        let sig_json = serde_json::to_string(&sig).unwrap();
+
+        let mut archive = zip::ZipArchive::new(Cursor::new(base)).unwrap();
+        let mut out = Vec::new();
+        {
+            let mut writer = zip::ZipWriter::new(Cursor::new(&mut out));
+            let opts = FileOptions::default();
+            for i in 0..archive.len() {
+                let mut file = archive.by_index(i).unwrap();
+                let name = file.name().to_string();
+                let mut buf = Vec::new();
+                file.read_to_end(&mut buf).unwrap();
+                writer.start_file(name, opts).unwrap();
+                writer.write_all(&buf).unwrap();
+            }
+            writer
+                .start_file(bundle_signature::BUNDLE_SIG_FILE, opts)
+                .unwrap();
+            writer.write_all(sig_json.as_bytes()).unwrap();
+            writer.finish().unwrap();
+        }
+        out
+    }
+
     #[test]
     fn sideload_install_without_listing() {
         let dir = tempdir().unwrap();
         let store = AppStore::open(dir.path().join("db").to_str().unwrap()).unwrap();
-        let manifest = r#"{"id":"com.test.app","name":"T","description":"d","version":"1.0.0","developer":"X","entry":"index.html","permissions":[],"min_mycelium_version":"0.1.0","accepts_payments":false,"categories":[]}"#;
-        let zip = sample_zip(manifest, "<html><body>ok</body></html>");
+        let manifest = r#"{"id":"com.test.app","name":"T","description":"d","version":"1.0.0","developer":"X","entry":"index.html","permissions":[],"min_mycelium_version":"0.1.0","accepts_payments":false,"categories":[],"runtime":"webview","bulletin_scopes":[]}"#;
+        let zip = sample_signed_sideload_zip(manifest, "<html><body>ok</body></html>");
         let preview = store.preview_install(&zip).unwrap();
         assert_eq!(preview.trust_level, InstallTrustLevel::SideloadOnly);
+        assert!(preview.bundle_signature_ok);
         store
             .install_verified(&zip, InstallTrust::SideloadAcknowledged, false)
             .unwrap();
+    }
+
+    #[test]
+    fn sideload_without_bundle_signature_rejected() {
+        let dir = tempdir().unwrap();
+        let store = AppStore::open(dir.path().join("db").to_str().unwrap()).unwrap();
+        let manifest = r#"{"id":"com.test.app","name":"T","description":"d","version":"1.0.0","developer":"X","entry":"index.html","permissions":[],"min_mycelium_version":"0.1.0","accepts_payments":false,"categories":[],"runtime":"webview","bulletin_scopes":[]}"#;
+        let zip = sample_zip(manifest, "<html><body>ok</body></html>");
+        assert!(store
+            .install_verified(&zip, InstallTrust::SideloadAcknowledged, false)
+            .is_err());
     }
 
     #[test]
@@ -246,11 +310,11 @@ mod tests {
         let store = AppStore::open(dir.path().join("db").to_str().unwrap()).unwrap();
         let v1 = r#"{"id":"com.test.app","name":"T","description":"d","version":"2.0.0","developer":"X","entry":"index.html","permissions":[],"min_mycelium_version":"0.1.0","accepts_payments":false,"categories":[],"runtime":"webview","bulletin_scopes":[]}"#;
         let v0 = r#"{"id":"com.test.app","name":"T","description":"d","version":"1.0.0","developer":"X","entry":"index.html","permissions":[],"min_mycelium_version":"0.1.0","accepts_payments":false,"categories":[],"runtime":"webview","bulletin_scopes":[]}"#;
-        let zip_hi = sample_zip(v1, "<html></html>");
+        let zip_hi = sample_signed_sideload_zip(v1, "<html></html>");
         store
             .install_verified(&zip_hi, InstallTrust::SideloadAcknowledged, false)
             .unwrap();
-        let zip_lo = sample_zip(v0, "<html></html>");
+        let zip_lo = sample_signed_sideload_zip(v0, "<html></html>");
         let preview = store.preview_install(&zip_lo).unwrap();
         assert!(preview.is_downgrade);
         assert!(store

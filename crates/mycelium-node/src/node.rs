@@ -4,6 +4,7 @@ use crate::forwarding::{
     EnergyPolicy, ForwardDecision, ForwardingPolicy, IngestPipeline, ProbabilisticForwardingPolicy,
     SeenCache, SimpleEnergyPolicy,
 };
+use crate::ingest_guard::{IngestGuard, IngestReject};
 use crate::security::{self, Sd030DropReason};
 use crate::storage::SledMessageStore;
 use crate::transport::Libp2pTransport;
@@ -207,6 +208,9 @@ pub struct NodeMetrics {
     pub messages_dropped_queue: u64,
     pub messages_dropped_invalid_sig: u64,
     pub messages_dropped_no_sig: u64,
+    pub messages_dropped_rate_limit: u64,
+    pub messages_dropped_replay: u64,
+    pub messages_dropped_oversize: u64,
     pub messages_delivered_local: u64,
     pub pending_queue_size: usize,
     pub seen_cache_size: usize,
@@ -365,6 +369,7 @@ pub struct NodeRunner {
     db_path: String,
     relay_identity: RelayIdentity,
     bulletin_subscriptions: Arc<RwLock<Vec<String>>>,
+    ingest_guard: IngestGuard,
 }
 
 impl NodeRunner {
@@ -451,6 +456,7 @@ impl NodeRunner {
                 db_path: config.db_path.clone(),
                 relay_identity: relay_identity.clone(),
                 bulletin_subscriptions: bulletin_subscriptions.clone(),
+                ingest_guard: IngestGuard::new(),
             },
             NodeHandle {
                 tx,
@@ -914,6 +920,14 @@ impl NodeRunner {
                 if !scopes.iter().any(|pattern| scope_obj.matches(pattern)) {
                     return Ok(());
                 }
+                let now = now_ms();
+                if let Err(reason) =
+                    self.ingest_guard
+                        .check_gossip_payload(&from_peer, payload.len(), now)
+                {
+                    self.record_ingest_reject(reason);
+                    return Ok(());
+                }
                 if scope.starts_with("mycelium/group/")
                     && bincode::deserialize::<WireMessage>(&payload)
                         .map(|wm| matches!(wm, WireMessage::EncryptedGroup { .. }))
@@ -924,6 +938,15 @@ impl NodeRunner {
                         None,
                         payload,
                     );
+                    if let Err(reason) = self.ingest_guard.check_gossip_message(
+                        &from_peer,
+                        &envelope.id.0,
+                        envelope.created_at_ms,
+                        now,
+                    ) {
+                        self.record_ingest_reject(reason);
+                        return Ok(());
+                    }
                     let stored = DirectMessage {
                         envelope,
                         body: "[mycelium:group]".into(),
@@ -945,6 +968,15 @@ impl NodeRunner {
                         None,
                         payload,
                     );
+                    if let Err(reason) = self.ingest_guard.check_gossip_message(
+                        &from_peer,
+                        &envelope.id.0,
+                        envelope.created_at_ms,
+                        now,
+                    ) {
+                        self.record_ingest_reject(reason);
+                        return Ok(());
+                    }
                     let stored = DirectMessage {
                         envelope,
                         body: "[appstore]".into(),
@@ -964,6 +996,15 @@ impl NodeRunner {
                         None,
                         payload,
                     );
+                    if let Err(reason) = self.ingest_guard.check_gossip_message(
+                        &from_peer,
+                        &envelope.id.0,
+                        envelope.created_at_ms,
+                        now,
+                    ) {
+                        self.record_ingest_reject(reason);
+                        return Ok(());
+                    }
                     let stored = DirectMessage {
                         envelope,
                         body: "[proximity]".into(),
@@ -986,6 +1027,15 @@ impl NodeRunner {
                         None,
                         payload,
                     );
+                    if let Err(reason) = self.ingest_guard.check_gossip_message(
+                        &from_peer,
+                        &envelope.id.0,
+                        envelope.created_at_ms,
+                        now,
+                    ) {
+                        self.record_ingest_reject(reason);
+                        return Ok(());
+                    }
                     let stored = DirectMessage {
                         envelope,
                         body: format!("[bulletin:{scope}]"),
@@ -1000,10 +1050,19 @@ impl NodeRunner {
                     return Ok(());
                 }
                 if let Ok(body) = String::from_utf8(payload.clone()) {
-                    let mut envelope =
-                        mycelium_core::data::Envelope::new(from_peer.clone(), None, payload);
-                    if let Some(keypair) = &self.keypair {
-                        let _ = envelope.sign(keypair);
+                    let envelope = mycelium_core::data::Envelope::new_unsigned(
+                        from_peer.clone(),
+                        None,
+                        payload,
+                    );
+                    if let Err(reason) = self.ingest_guard.check_gossip_message(
+                        &from_peer,
+                        &envelope.id.0,
+                        envelope.created_at_ms,
+                        now,
+                    ) {
+                        self.record_ingest_reject(reason);
+                        return Ok(());
                     }
                     let stored = DirectMessage {
                         envelope,
@@ -1015,6 +1074,7 @@ impl NodeRunner {
                         .await?;
                     if should_process {
                         info!("gossip recv from {} [{}]: {}", from_peer, scope, body);
+                        let _ = self.incoming_tx.send(stored);
                     }
                 }
             }
@@ -1091,6 +1151,15 @@ impl NodeRunner {
                 if message.envelope.hop_count >= message.envelope.max_hops {
                     let mut metrics = self.metrics.write().await;
                     metrics.messages_dropped_hops += 1;
+                    return Ok(());
+                }
+                let author = message.envelope.signature_author_peer();
+                let now = now_ms();
+                if let Err(reason) = self.ingest_guard.allow_direct(author, &message, now) {
+                    self.record_ingest_reject(reason);
+                    if matches!(reason, IngestReject::RateLimit | IngestReject::Replay) {
+                        self.register_strike(&from_peer);
+                    }
                     return Ok(());
                 }
                 let should_process = self
@@ -1539,6 +1608,18 @@ impl NodeRunner {
             return now < rep.throttled_until_ms;
         }
         false
+    }
+
+    fn record_ingest_reject(&self, reason: IngestReject) {
+        let metrics = self.metrics.clone();
+        tokio::spawn(async move {
+            let mut m = metrics.write().await;
+            match reason {
+                IngestReject::RateLimit => m.messages_dropped_rate_limit += 1,
+                IngestReject::Replay | IngestReject::Stale => m.messages_dropped_replay += 1,
+                IngestReject::Oversize => m.messages_dropped_oversize += 1,
+            }
+        });
     }
 
     fn register_strike(&self, peer: &str) {

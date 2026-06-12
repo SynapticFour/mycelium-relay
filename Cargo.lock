@@ -3699,9 +3699,12 @@ dependencies = [
  "anyhow",
  "blake3",
  "clap",
+ "libp2p",
  "mycelium-app",
  "serde",
  "serde_json",
+ "tempfile",
+ "zip",
 ]
 
 [[package]]
