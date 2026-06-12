@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Bounded emergency settlement policy — hard caps and velocity limits.
 //!
 //! MeshCoin is **not** a cryptocurrency; these limits enforce low-value, utility-only use.

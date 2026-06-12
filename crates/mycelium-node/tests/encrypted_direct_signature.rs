@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Unsigned or invalid EncryptedDirect wire frames must be rejected at the node.
 
 use libp2p::identity;

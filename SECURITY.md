@@ -2,16 +2,27 @@
 
 ## Reporting a Vulnerability
 
-Please do **not** open public GitHub issues for security vulnerabilities.
+**Do not** open public GitHub issues for security vulnerabilities.
 
-Report vulnerabilities privately to **contact@synapticfour.com** with:
+Report them privately to **security@[domain]** with:
 
-- affected repository and version or commit
-- reproduction steps or proof-of-concept
+- affected component (relay binary, deploy config, rendezvous API) and version or commit hash
+- clear reproduction steps or proof-of-concept
 - impact assessment
 
-We will acknowledge receipt as quickly as possible, triage severity, and coordinate a responsible disclosure timeline.
+We aim to acknowledge receipt within **72 hours** and coordinate responsible disclosure.
 
-## Scope and Guarantees
+Preferred channels:
 
-This project is maintained on a best-effort basis. Security documentation and test coverage improve over time, but no absolute security guarantee is provided.
+1. Email: **security@[domain]**
+2. GitHub Security Advisories on this repository
+
+## Scope
+
+In scope: `mycelium-relay` binary, Fly.io deployment surface, rendezvous HTTP endpoints, libp2p listener configuration.
+
+The main Mycelium app security model is documented in [SynapticFour/Mycelium](https://github.com/SynapticFour/Mycelium).
+
+## AGPL
+
+This relay is AGPL-3.0-or-later. Operators running modified versions on a public network must provide corresponding source to users per the license.

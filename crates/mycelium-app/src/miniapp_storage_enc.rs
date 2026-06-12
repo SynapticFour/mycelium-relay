@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! At-rest encryption for mini-app KV (`miniapp_storage` tree).
 
 use chacha20poly1305::aead::{Aead, KeyInit};

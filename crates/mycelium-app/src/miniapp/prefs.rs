@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Per-app host preferences (safe mode toggle, etc.).
 
 use serde::{Deserialize, Serialize};

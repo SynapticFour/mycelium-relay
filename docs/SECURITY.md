@@ -48,4 +48,4 @@ than plaintext. Upgrade your OS to ensure keyring availability.
 
 ## Reporting vulnerabilities
 
-Please report security issues to: contact@synapticfour.com (Synaptic Four)
+Please report security issues privately — see [SECURITY.md](../SECURITY.md) at the repository root.

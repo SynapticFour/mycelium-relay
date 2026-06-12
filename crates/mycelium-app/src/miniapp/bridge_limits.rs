@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Bridge call rate limits (Cell C2 / H08).
 
 use std::collections::HashMap;

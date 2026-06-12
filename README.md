@@ -1,53 +1,54 @@
-# Mycelium
+# Mycelium Relay
 
-Research-oriented mesh networking workspace in Rust (libp2p, delay-tolerant messaging, relay, desktop, and Android targets).
+> **Early Beta — expect bugs.** This repository builds and deploys the public bootstrap relay used by [Mycelium](https://github.com/SynapticFour/Mycelium) clients.
 
-[![Mycelium CI](https://github.com/SynapticFour/mycelium-relay/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SynapticFour/mycelium-relay/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![Mycelium Relay CI](https://github.com/SynapticFour/mycelium-relay/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SynapticFour/mycelium-relay/actions/workflows/ci.yml)
 
-## Run
+**Mycelium Relay** is the Internet-facing libp2p circuit relay and rendezvous service that helps Mycelium nodes find each other across NAT — a bootstrap aid, not a central message server. Message content stays end-to-end encrypted on the mesh; the relay sees connection metadata only.
+
+**This is not a replacement for emergency services.**
+
+- Live endpoint: `mycelium-relay.fly.dev` (Frankfurt region)
+- Main app repository: [SynapticFour/Mycelium](https://github.com/SynapticFour/Mycelium)
+- Beta website: [mycelium-beta.vercel.app](https://mycelium-beta.vercel.app)
+
+## What this repo contains
+
+This tree mirrors the Mycelium Rust workspace crates needed to build `mycelium-relay`, synced from the main app repo via `scripts/sync-relay-repo.sh` in Mycelium. Deploy configuration lives under `deploy/relay/`.
+
+## Run locally
 
 ```bash
-cargo run -p mycelium-cli
+cargo run -p mycelium-relay
 ```
 
-Start two terminals on the same LAN and exchange peer IDs:
-- list known peers: `/peers`
-- direct message: `/chat <peer_id> hello`
-- scoped broadcast: `/broadcast mycelium/chat hello`
+Health check: `curl -s http://localhost:8080/health`
 
-## Smoke Test
+## Deploy (Fly.io)
 
-For a full MVP validation flow (chat, bulletin, mail, REST API), see:
+See [deploy/relay/README.md](deploy/relay/README.md) and `scripts/deploy-relay-fly.sh`.
 
-- `docs/mvp-smoke-test.md`
+Production config: [deploy/relay/fly.toml](deploy/relay/fly.toml) — libp2p TCP/UDP 4001, HTTP health on 8080, persistent volume for stable peer identity.
 
-## Android
+## Architecture role
 
-For Android build, UniFFI binding generation, emulator/device install, and E2E checks, see:
+```
+Mycelium App ──► relay circuit (/p2p-circuit) ──► Mycelium App
+                      │
+                      └── rendezvous HTTP API (opt-in peer hints)
+```
 
-- `android/README.md`
-
-## Network Hardening
-
-For scoped dissemination, bloom anti-entropy, signing, GC, hop limits, and reputation details, see:
-
-- `docs/network-hardening.md`
+- **Not** a store-and-forward message hub — nodes relay for each other
+- **Does** provide NAT traversal and optional rendezvous registration
+- **AGPL note:** if you modify and operate this relay publicly, you must offer corresponding source to users per [LICENSE](LICENSE)
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Security
-
-See [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: **security@[domain]** — [SECURITY.md](SECURITY.md).
 
 ## License
 
-Licensed under either of
+Copyright (C) 2026 Mycelium Project.
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT License ([LICENSE-MIT](LICENSE-MIT))
-
-at your option.
-
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+Licensed under [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).

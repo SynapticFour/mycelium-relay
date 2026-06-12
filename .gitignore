@@ -1,7 +1,21 @@
 /target/
 /node_modules/
 /.cargo-home/
+/.mycelium-relay/
 /android/.gradle/
 /android/**/build/
 /android/keystore.jks
 /android/local.properties
+
+# Logs / env / secrets
+*.log
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+secrets/
+credentials.json
+service-account*.json

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Content-Security-Policy helpers (H05 / P3).
 
 /// `script-src` fragment: strict nonce-only, or nonce + `unsafe-inline` for legacy bundles.

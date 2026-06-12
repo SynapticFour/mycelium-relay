@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Mini-app storage quotas (Cell C2 / H09).
 
 pub const MAX_KEY_LEN: usize = 128;

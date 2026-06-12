@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Bloom sync: peers exchange IDs missing from the remote bloom filter.
 
 use mycelium_core::sync::BloomFilter;

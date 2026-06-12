@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 /**
  * Mycelium Mini-App Bridge API — v1 (injected before app HTML runs).
  * Native host implements `window.__mycelium_native_call(json)` and resolves via

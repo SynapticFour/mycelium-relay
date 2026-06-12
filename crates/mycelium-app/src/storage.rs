@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 use crate::contacts::{Contact, ContactStatus};
 use crate::envelope::{BulletinPost, ChatMessage, MailMessage};
 use crate::groups::Group;

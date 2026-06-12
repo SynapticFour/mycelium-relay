@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! HMAC capability tokens for runtime permission grants (H25 / P4).
 
 use std::time::{SystemTime, UNIX_EPOCH};

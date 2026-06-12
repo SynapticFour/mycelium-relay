@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 use libp2p::identity::{Keypair, PeerId, PublicKey};
 use mycelium_core::data::now_ms;
 use serde::{Deserialize, Serialize};

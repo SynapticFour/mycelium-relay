@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Revoked mini-app IDs (Cell C3) + signed gossip revocations (H18).
 
 use libp2p::identity::Keypair;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 use crate::behaviour::{
     make_direct_response, DirectMessageRequest, DirectMessageResponse, MeshBehaviour,
 };

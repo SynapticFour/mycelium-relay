@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Mini-app platform: manifests, `.mxa` bundles, local store, and JS bridge source.
 
 pub mod bridge_host;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Compact invite payloads for QR codes and deep links (all Mycelium clients).
 
 const PREFIX_V1: &str = "mycelium://invite/v1#";

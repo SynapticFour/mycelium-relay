@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 pub trait NotificationSink: Send + Sync {
     fn on_chat_received(&self, from: &str, preview: &str);
     fn on_mail_received(&self, from: &str, subject: &str);

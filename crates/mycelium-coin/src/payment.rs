@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! QR-friendly payment URI (`mxcpay:`) for MeshCoin transfers.
 
 use mycelium_core::data::now_ms;

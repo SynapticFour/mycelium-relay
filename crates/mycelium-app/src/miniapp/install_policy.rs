@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Install-time trust decisions for mini-app bundles (Cell C0).
 
 use super::bundle::MiniAppBundle;

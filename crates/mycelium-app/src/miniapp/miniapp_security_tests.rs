@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Cross-cutting mini-app security tests (H27 / P4).
 
 use super::bundle::MiniAppBundle;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Safe mode bridge restrictions (H20).
 
 /// Methods allowed while safe mode is active (read-only + clock).

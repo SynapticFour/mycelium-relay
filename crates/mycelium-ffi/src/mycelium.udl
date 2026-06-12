@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 namespace mycelium {
   void init_node(NodeConfig config);
   void stop_node();

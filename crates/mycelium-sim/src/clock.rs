@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 pub trait VirtualClock: Send {
     fn now_ms(&self) -> u64;
     fn advance_to(&mut self, timestamp_ms: u64);

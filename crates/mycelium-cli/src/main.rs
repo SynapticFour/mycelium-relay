@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use mycelium_app::api::start_api_server;

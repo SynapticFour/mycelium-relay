@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Combined policy view for hosts (reputation + safe mode + revocation).
 
 use serde::{Deserialize, Serialize};

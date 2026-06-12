@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Optional inner framing for E2E direct ciphertext plaintexts so a recipient
 //! can identify the libp2p author after multi-hop relay.
 //!

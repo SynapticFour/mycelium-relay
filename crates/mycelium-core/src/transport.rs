@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 use crate::data::Envelope;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

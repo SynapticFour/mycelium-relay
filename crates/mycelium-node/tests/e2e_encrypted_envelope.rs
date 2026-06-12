@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! E2E decrypt must not attach a misleading libp2p envelope signature.
 
 use mycelium_core::crypto::{decrypt_with, encrypt_for, EncryptionKeypair};

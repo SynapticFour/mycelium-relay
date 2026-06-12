@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 use crate::address::{address_from_public_key, validate_address};
 use libp2p::identity::{Keypair, PublicKey};
 use serde::{Deserialize, Serialize};

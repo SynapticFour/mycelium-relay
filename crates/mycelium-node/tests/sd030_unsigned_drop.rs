@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! SD-030: unsigned and invalid-signature WireMessage::Data must be rejected.
 
 use libp2p::identity;

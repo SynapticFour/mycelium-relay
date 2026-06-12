@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Network-layer security helpers (SD-030, SD-031).
 
 use libp2p::PeerId;

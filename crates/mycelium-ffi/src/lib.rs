@@ -1,4 +1,6 @@
 #![allow(clippy::empty_line_after_doc_comments)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 
 use async_trait::async_trait;
 use mycelium_app::contacts::{Contact, ContactStatus as AppContactStatus};

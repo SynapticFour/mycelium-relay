@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Static bundle analysis at install/lint time (H24 / P4).
 
 use super::bundle::MiniAppBundle;

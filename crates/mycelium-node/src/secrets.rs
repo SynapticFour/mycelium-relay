@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Mycelium Project
 //! Load identity and encryption keys through [`mycelium_core::at_rest::SecretVault`].
 
 use libp2p::identity;
