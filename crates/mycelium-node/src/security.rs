@@ -26,19 +26,13 @@ pub fn is_gossip_relay_body(body: &str) -> bool {
 /// Returns `Ok(())` when the message may be processed; `Err` when it must be dropped.
 pub fn validate_data_message_signature(
     message: &DirectMessage,
-    now_ms: u64,
+    _now_ms: u64,
 ) -> Result<(), Sd030DropReason> {
     if is_gossip_relay_body(&message.body) {
         return Ok(());
     }
     match &message.envelope.signature {
-        None => {
-            if now_ms >= UNSIGNED_GRACE_PERIOD_UNTIL_MS {
-                Err(Sd030DropReason::NoSignature)
-            } else {
-                Ok(())
-            }
-        }
+        None => Err(Sd030DropReason::NoSignature),
         Some(_) => {
             let author = message.envelope.signature_author_peer();
             let Ok(author_id) = author.parse::<PeerId>() else {
