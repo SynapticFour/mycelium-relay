@@ -4,7 +4,7 @@
 
 **Do not** open public GitHub issues for security vulnerabilities.
 
-Report them privately to **security@[domain]** with:
+Report them privately to **security@synapticfour.com** with:
 
 - affected component (relay binary, deploy config, rendezvous API) and version or commit hash
 - clear reproduction steps or proof-of-concept
@@ -14,7 +14,7 @@ We aim to acknowledge receipt within **72 hours** and coordinate responsible dis
 
 Preferred channels:
 
-1. Email: **security@[domain]**
+1. Email: **security@synapticfour.com**
 2. GitHub Security Advisories on this repository
 
 ## Scope
