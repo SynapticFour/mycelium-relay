@@ -125,7 +125,7 @@ fn read_bundle(path: &Path) -> anyhow::Result<(Vec<u8>, MiniAppBundle)> {
     Ok((bytes, bundle))
 }
 
-fn lint_bundle(path: &PathBuf) -> anyhow::Result<()> {
+fn lint_bundle(path: &Path) -> anyhow::Result<()> {
     let (bytes, bundle) = read_bundle(path)?;
     if bundle.total_size() > 10 * 1024 * 1024 {
         anyhow::bail!("bundle exceeds 10 MB limit");
@@ -374,7 +374,7 @@ fn sign_bundle(path: &Path, identity: &Path, output: Option<&PathBuf>) -> anyhow
     Ok(())
 }
 
-fn attest_bundle(path: &PathBuf, recipe: &Path) -> anyhow::Result<()> {
+fn attest_bundle(path: &Path, recipe: &Path) -> anyhow::Result<()> {
     let (bytes, bundle) = read_bundle(path)?;
     let content_hash = content_attestation_hash(&bundle)?;
     let archive_hash = bundle_hash_hex(&bytes);
