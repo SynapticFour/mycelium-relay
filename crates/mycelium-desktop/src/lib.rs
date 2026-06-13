@@ -957,7 +957,9 @@ window.__mycelium_native_call = function (json) {{
 "#,
         session_json = serde_json::to_string(&session).map_err(|e| e.to_string())?
     );
-    Ok(format!("{csp_meta}\n{network_block}\n{shim}{bridge}</script>\n{body}"))
+    Ok(format!(
+        "{csp_meta}\n{network_block}\n{shim}{bridge}</script>\n{body}"
+    ))
 }
 
 #[tauri::command]

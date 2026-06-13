@@ -9,15 +9,18 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use libp2p::identity::Keypair;
 use mycelium_app::miniapp::bundle_signature::{self, BundleSignatureFile, BUNDLE_SIG_FILE};
-use mycelium_app::miniapp::store::{AppSource, AppStoreListing};
 use mycelium_app::miniapp::manifest::MiniAppManifest;
 use mycelium_app::miniapp::reproducible_build::{content_attestation_hash, digest_file_hex};
+use mycelium_app::miniapp::store::{AppSource, AppStoreListing};
 use mycelium_app::miniapp::{scan_bundle, MiniAppBundle, ReproducibleBuild};
 use zip::write::FileOptions;
 use zip::ZipArchive;
 
 #[derive(Parser)]
-#[command(name = "miniapp-sdk", about = "Lint, pack, and sign Mycelium .mxa bundles")]
+#[command(
+    name = "miniapp-sdk",
+    about = "Lint, pack, and sign Mycelium .mxa bundles"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Command,
@@ -125,7 +128,7 @@ fn read_bundle(path: &Path) -> anyhow::Result<(Vec<u8>, MiniAppBundle)> {
     Ok((bytes, bundle))
 }
 
-fn lint_bundle(path: &PathBuf) -> anyhow::Result<()> {
+fn lint_bundle(path: &Path) -> anyhow::Result<()> {
     let (bytes, bundle) = read_bundle(path)?;
     if bundle.total_size() > 10 * 1024 * 1024 {
         anyhow::bail!("bundle exceeds 10 MB limit");
@@ -252,11 +255,7 @@ fn emit_listings_dir(dir: &Path, identity: &Path, output: &Path) -> anyhow::Resu
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(output, serde_json::to_string_pretty(&file)?)?;
-    println!(
-        "wrote {} listing(s) → {}",
-        listings.len(),
-        output.display()
-    );
+    println!("wrote {} listing(s) → {}", listings.len(), output.display());
     Ok(())
 }
 
@@ -369,12 +368,14 @@ fn sign_bundle(path: &Path, identity: &Path, output: Option<&PathBuf>) -> anyhow
     let ok = bundle_signature::verify_bundle_developer_signature(&bundle, &signed)?;
     println!(
         "signed {} v{} → {} (peer_id={peer_id}, sig_ok={ok})",
-        manifest.id, manifest.version, dest.display()
+        manifest.id,
+        manifest.version,
+        dest.display()
     );
     Ok(())
 }
 
-fn attest_bundle(path: &PathBuf, recipe: &Path) -> anyhow::Result<()> {
+fn attest_bundle(path: &Path, recipe: &Path) -> anyhow::Result<()> {
     let (bytes, bundle) = read_bundle(path)?;
     let content_hash = content_attestation_hash(&bundle)?;
     let archive_hash = bundle_hash_hex(&bytes);

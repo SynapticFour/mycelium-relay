@@ -1,5 +1,15 @@
 SHELL := /bin/zsh
 
+.PHONY: help test test-fast test-unit test-sim check clippy ci fmt docker-android-ci docker-compose-android gradle-wrapper
+
+help:
+	@echo "mycelium-relay — Synaptic Four bootstrap relay"
+	@echo ""
+	@echo "  cargo run -p mycelium-relay   Local relay (see README)"
+	@echo "  make test                     Run tests"
+	@echo ""
+	@echo "Production: ./scripts/deploy-relay-fly.sh · docs/ECOSYSTEM.md"
+
 .PHONY: test test-fast test-unit test-sim check clippy ci fmt docker-android-ci docker-compose-android gradle-wrapper
 
 # One-shot: add Gradle wrapper under android/ using Docker (no local Gradle needed).
