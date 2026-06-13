@@ -334,10 +334,7 @@ impl SimulationRunner {
             .push(self.clock.now_ms().saturating_sub(created_at_ms));
     }
 
-    pub async fn spawn_sim_node(
-        &mut self,
-        bandwidth: u64,
-    ) -> anyhow::Result<SimNode> {
+    pub async fn spawn_sim_node(&mut self, bandwidth: u64) -> anyhow::Result<SimNode> {
         let idx = self.nodes.len();
         let db_path = sim_db_path(self.sim_run_id, &format!("n{idx}"));
         let _ = std::fs::remove_dir_all(&db_path);

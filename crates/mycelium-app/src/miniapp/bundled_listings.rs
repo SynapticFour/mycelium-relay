@@ -87,7 +87,9 @@ mod tests {
         let merged = merge_bundled_listings(&store).expect("merge");
         assert!(merged >= 3, "expected official listings, got {merged}");
         let rows = store.browse_listings().unwrap();
-        assert!(rows.iter().any(|l| l.manifest.id == "network.mycelium.meshaid"));
+        assert!(rows
+            .iter()
+            .any(|l| l.manifest.id == "network.mycelium.meshaid"));
         assert!(official_bundle_bytes("network.mycelium.meshaid").is_some());
     }
 }

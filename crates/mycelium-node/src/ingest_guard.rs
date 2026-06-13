@@ -56,10 +56,7 @@ impl FixedWindowRateLimiter {
     }
 
     fn allow(&mut self, key: &str, now_ms: u64) -> bool {
-        let entry = self
-            .buckets
-            .entry(key.to_string())
-            .or_insert((0, now_ms));
+        let entry = self.buckets.entry(key.to_string()).or_insert((0, now_ms));
         if now_ms.saturating_sub(entry.1) >= self.window_ms {
             *entry = (0, now_ms);
         }
@@ -238,13 +235,7 @@ mod tests {
         let mut guard = IngestGuard::new();
         let now = 5_000_000u64;
         assert_eq!(
-            guard.allow_gossip(
-                "peer",
-                MAX_GOSSIP_PAYLOAD_BYTES + 1,
-                "id1",
-                now,
-                now
-            ),
+            guard.allow_gossip("peer", MAX_GOSSIP_PAYLOAD_BYTES + 1, "id1", now, now),
             Err(IngestReject::Oversize)
         );
     }

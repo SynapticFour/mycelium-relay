@@ -165,8 +165,7 @@ mod tests {
 
     #[test]
     fn accepts_profile_object_key() {
-        let (bundle, archive) =
-            minimal_bundle(r#"<html><body><div id="app"></div></body></html>"#);
+        let (bundle, archive) = minimal_bundle(r#"<html><body><div id="app"></div></body></html>"#);
         scan_bundle(&bundle, &archive).unwrap();
     }
 
