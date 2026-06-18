@@ -1,5 +1,6 @@
 /target/
 /node_modules/
+/crates/mycelium-desktop/ui/node_modules/
 /.cargo-home/
 /.mycelium-relay/
 /android/.gradle/
