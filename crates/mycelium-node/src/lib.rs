@@ -25,3 +25,14 @@ pub use secrets::{load_or_create_enc_keypair, StorageKey};
 pub fn load_or_create_keypair(path: &str) -> anyhow::Result<libp2p::identity::Keypair> {
     secrets::load_or_create_keypair(path, None)
 }
+
+/// Like [`load_or_create_keypair`], but reads `MYCELIUM_STORAGE_KEY` (64 hex chars) when set.
+/// Required on headless servers (Fly.io) where OS keyring does not persist across restarts.
+pub fn load_or_create_keypair_from_env(path: &str) -> anyhow::Result<libp2p::identity::Keypair> {
+    let storage_key = match std::env::var("MYCELIUM_STORAGE_KEY") {
+        Ok(hex) => Some(parse_storage_key_hex(&hex)?),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(e) => return Err(e.into()),
+    };
+    secrets::load_or_create_keypair(path, storage_key)
+}

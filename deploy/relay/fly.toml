@@ -4,6 +4,12 @@ primary_region = "fra"
 # Docker image: root Dockerfile.relay (see scripts/deploy-relay-fly.sh / CI).
 [env]
 RUST_LOG = "info,mycelium_relay=debug"
+# Stable libp2p identity on /data (no OS keyring on Fly). Set once:
+#   fly secrets set MYCELIUM_STORAGE_KEY="$(openssl rand -hex 32)" -a mycelium-relay
+#
+# libp2p TCP/4001 requires a dedicated IPv4 (shared ingress breaks raw TCP/noise):
+#   fly ips allocate-v4 --yes -a mycelium-relay
+# Bootstrap clients should dial the dedicated /ip4/… address (see bootstrap.rs).
 
 # HTTP Health-Check (Port 8080 intern → 80/443 extern via Fly-Proxy)
 [[services]]

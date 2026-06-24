@@ -50,7 +50,33 @@ docker run --rm -p 4001:4001/tcp -p 4001:4001/udp -p 8080:8080 mycelium-relay:lo
 curl -s http://localhost:8080/health
 ```
 
-### 5. Logs and peer id
+### 5. Stable relay identity (required on Fly)
+
+Fly has no OS keyring; without a fixed storage key the libp2p peer id changes on every deploy and clients lose bootstrap.
+
+```bash
+fly secrets set MYCELIUM_STORAGE_KEY="$(openssl rand -hex 32)" -a mycelium-relay
+```
+
+Identity is persisted on the mounted volume at `/data/.mycelium-relay/identity`.
+
+### 6. Dedicated IPv4 for libp2p TCP/UDP
+
+Shared Fly ingress breaks raw libp2p Noise on port 4001. Allocate once:
+
+```bash
+fly ips allocate-v4 --yes -a mycelium-relay
+```
+
+After deploy, update `crates/mycelium-core/src/bootstrap.rs` (`RELAY_IPV4`, `RELAY_PEER_ID`, `BOOTSTRAP_PEERS`) from:
+
+```bash
+curl -s https://mycelium-relay.fly.dev/
+```
+
+Clients must dial the dedicated `/ip4/…` address, not `/dns4/mycelium-relay.fly.dev/…`.
+
+### 7. Logs and peer id
 
 ```bash
 fly logs --app mycelium-relay | grep -i peer

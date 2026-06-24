@@ -3,13 +3,14 @@
 //! Öffentliche Bootstrap-Peers für das Mycelium-Netzwerk.
 //!
 //! Nach einem Relay-Redeployment:
-//! 1. `curl -s https://mycelium-relay.fly.dev/ | grep peer_id`
-//! 2. Peer-ID in [`BOOTSTRAP_PEERS`] eintragen
-//! 3. Commit + Push → alle Clients bekommen beim nächsten Build die richtige Adresse
+//! 1. `curl -s https://mycelium-relay.fly.dev/` → `peer_id`
+//! 2. [`RELAY_PEER_ID`] und [`BOOTSTRAP_PEERS`] aktualisieren (TCP via dedicated `/ip4/…`)
+//! 3. Commit + Build → Clients dialen den Relay korrekt
 
-/// Eingebettete Bootstrap-Peer-Adressen.
-/// Format: libp2p Multiaddr — /dns4/<host>/tcp/<port>/p2p/<peer-id>
-pub const RELAY_PEER_ID: &str = "12D3KooWGv6goWd2fHwcigDjqQm5Dfw28UijwEjnMcYwTpPRPZy6";
+/// Fly.io dedicated IPv4 (raw libp2p TCP/UDP; shared ingress breaks Noise handshake).
+pub const RELAY_IPV4: &str = "149.248.194.198";
+
+pub const RELAY_PEER_ID: &str = "12D3KooWSkVL5ThExB7paWskDKc2pUobKrV9yWVabMpUdw8hE2wj";
 
 /// Public relay / bootstrap infra — not a user device in Connect UI.
 pub fn is_relay_peer(peer_id: &str) -> bool {
@@ -17,10 +18,10 @@ pub fn is_relay_peer(peer_id: &str) -> bool {
 }
 
 pub const BOOTSTRAP_PEERS: &[&str] = &[
-    "/dns4/mycelium-relay.fly.dev/tcp/4001/p2p/12D3KooWGv6goWd2fHwcigDjqQm5Dfw28UijwEjnMcYwTpPRPZy6",
-    "/dns4/mycelium-relay.fly.dev/udp/4001/quic-v1/p2p/12D3KooWGv6goWd2fHwcigDjqQm5Dfw28UijwEjnMcYwTpPRPZy6",
+    "/ip4/149.248.194.198/tcp/4001/p2p/12D3KooWSkVL5ThExB7paWskDKc2pUobKrV9yWVabMpUdw8hE2wj",
+    "/ip4/149.248.194.198/udp/4001/quic-v1/p2p/12D3KooWSkVL5ThExB7paWskDKc2pUobKrV9yWVabMpUdw8hE2wj",
     // Second regional relay (after deploy, e.g. fly regions add ams):
-    // "/dns4/mycelium-relay-ams.fly.dev/tcp/4001/p2p/12D3KooW...",
+    // "/ip4/<ams-ip>/tcp/4001/p2p/12D3KooW...",
 ];
 
 /// Extract the `/p2p/<PeerId>` component from a libp2p multiaddr.
@@ -202,7 +203,7 @@ mod tests {
     fn relay_circuit_addr_uses_embedded_relay() {
         let addr =
             relay_circuit_multiaddr("12D3KooWExamplePeerIdForTestOnly").expect("circuit addr");
-        assert!(addr.contains("mycelium-relay.fly.dev"));
+        assert!(addr.contains(RELAY_IPV4));
         assert!(addr.contains("/p2p-circuit/p2p/12D3KooWExamplePeerIdForTestOnly"));
         assert!(addr.contains(RELAY_PEER_ID));
     }

@@ -48,6 +48,8 @@ struct StatusState {
     connections: Arc<AtomicU64>,
     reservations: Arc<AtomicU64>,
     connected_peers: Arc<RwLock<HashSet<String>>>,
+    /// Peers with an active relay reservation (reachable via `/p2p-circuit`).
+    reserved_peers: Arc<RwLock<HashSet<String>>>,
     rendezvous_opt_in: Arc<RwLock<HashSet<String>>>,
     started: Instant,
     version: &'static str,
@@ -59,9 +61,10 @@ struct RendezvousPeerBody {
 }
 
 async fn rendezvous(State(s): State<StatusState>) -> Json<serde_json::Value> {
-    let connected = s.connected_peers.read().expect("connected_peers lock");
+    let reserved = s.reserved_peers.read().expect("reserved_peers lock");
     let opt_in = s.rendezvous_opt_in.read().expect("rendezvous_opt_in lock");
-    let peers: Vec<String> = connected
+    // Only list peers with an active relay reservation — stale opt-in entries are not reachable.
+    let peers: Vec<String> = reserved
         .iter()
         .filter(|p| opt_in.contains(*p))
         .cloned()
@@ -97,10 +100,22 @@ async fn rendezvous_unregister(
 async fn status(
     axum::extract::State(s): axum::extract::State<StatusState>,
 ) -> Json<serde_json::Value> {
+    let unique_peers = s
+        .connected_peers
+        .read()
+        .expect("connected_peers lock")
+        .len() as u64;
+    let reachable_peers = {
+        let reserved = s.reserved_peers.read().expect("reserved_peers lock");
+        let opt_in = s.rendezvous_opt_in.read().expect("rendezvous_opt_in lock");
+        reserved.iter().filter(|p| opt_in.contains(*p)).count() as u64
+    };
     Json(serde_json::json!({
         "status": "ok",
         "peer_id": s.peer_id,
         "connections": s.connections.load(Ordering::Relaxed),
+        "unique_peers": unique_peers,
+        "reachable_peers": reachable_peers,
         "reservations": s.reservations.load(Ordering::Relaxed),
         "uptime_secs": s.started.elapsed().as_secs(),
         "version": s.version,
@@ -131,22 +146,27 @@ async fn main() -> anyhow::Result<()> {
     let keypair_path = args
         .keypair_path
         .unwrap_or_else(|| ".mycelium-relay/identity".to_string());
-    let key = mycelium_node::load_or_create_keypair(&keypair_path)?;
+    let key = mycelium_node::load_or_create_keypair_from_env(&keypair_path)?;
     let local_peer_id = key.public().to_peer_id();
 
     info!("Relay Peer ID: {local_peer_id}");
-    info!("Bootstrap multiaddr: /dns4/mycelium-relay.fly.dev/tcp/4001/p2p/{local_peer_id}");
+    info!(
+        "Bootstrap multiaddr: /ip4/{}/tcp/4001/p2p/{local_peer_id}",
+        mycelium_core::bootstrap::RELAY_IPV4
+    );
 
     let connections = Arc::new(AtomicU64::new(0));
     let reservations = Arc::new(AtomicU64::new(0));
 
     let connected_peers = Arc::new(RwLock::new(HashSet::new()));
+    let reserved_peers = Arc::new(RwLock::new(HashSet::new()));
     let rendezvous_opt_in = Arc::new(RwLock::new(HashSet::new()));
     let state = StatusState {
         peer_id: local_peer_id.to_string(),
         connections: connections.clone(),
         reservations: reservations.clone(),
         connected_peers: connected_peers.clone(),
+        reserved_peers: reserved_peers.clone(),
         rendezvous_opt_in: rendezvous_opt_in.clone(),
         started: Instant::now(),
         version: env!("CARGO_PKG_VERSION"),
@@ -232,10 +252,19 @@ async fn main() -> anyhow::Result<()> {
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
                 atomic_saturating_sub(&connections);
+                let pid = peer_id.to_string();
                 connected_peers
                     .write()
                     .expect("connected_peers lock")
-                    .remove(&peer_id.to_string());
+                    .remove(&pid);
+                reserved_peers
+                    .write()
+                    .expect("reserved_peers lock")
+                    .remove(&pid);
+                rendezvous_opt_in
+                    .write()
+                    .expect("rendezvous_opt_in lock")
+                    .remove(&pid);
                 info!("- {peer_id} ({})", connections.load(Ordering::Relaxed));
             }
             SwarmEvent::Behaviour(RelayBehaviourEvent::Relay(ev)) => match ev {
@@ -243,12 +272,30 @@ async fn main() -> anyhow::Result<()> {
                     src_peer_id,
                     renewed,
                     ..
-                } if !renewed => {
-                    reservations.fetch_add(1, Ordering::Relaxed);
-                    info!("Reservation accepted: {src_peer_id}");
+                } => {
+                    if !renewed {
+                        reservations.fetch_add(1, Ordering::Relaxed);
+                    }
+                    reserved_peers
+                        .write()
+                        .expect("reserved_peers lock")
+                        .insert(src_peer_id.to_string());
+                    if renewed {
+                        info!("Reservation renewed: {src_peer_id}");
+                    } else {
+                        info!("Reservation accepted: {src_peer_id}");
+                    }
                 }
                 relay::Event::ReservationTimedOut { src_peer_id } => {
                     atomic_saturating_sub(&reservations);
+                    reserved_peers
+                        .write()
+                        .expect("reserved_peers lock")
+                        .remove(&src_peer_id.to_string());
+                    rendezvous_opt_in
+                        .write()
+                        .expect("rendezvous_opt_in lock")
+                        .remove(&src_peer_id.to_string());
                     info!("Reservation timed out: {src_peer_id}");
                 }
                 relay::Event::CircuitClosed {
