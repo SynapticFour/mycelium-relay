@@ -31,6 +31,23 @@ See [deploy/relay/README.md](deploy/relay/README.md) and `scripts/deploy-relay-f
 
 Production config: [deploy/relay/fly.toml](deploy/relay/fly.toml) — libp2p TCP/UDP 4001, HTTP health on 8080, persistent volume for stable peer identity.
 
+**Production deploy:** push an annotated tag `v*.*.*` — [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) deploys to Fly.io (not on every `main` push).
+
+### Run your own relay (AGPL-3.0)
+
+You may deploy a **public bootstrap relay** for your community. Mycelium Relay is licensed under **[AGPL-3.0-or-later](LICENSE)** — if you modify and operate it as a network service, you must offer corresponding source to users.
+
+1. Fork or clone this repo.
+2. Follow [deploy/relay/fly.toml](deploy/relay/fly.toml) and [deploy/relay/README.md](deploy/relay/README.md).
+3. **Required:** set a stable identity before the first production deploy:
+   ```bash
+   fly secrets set MYCELIUM_STORAGE_KEY="$(openssl rand -hex 32)" -a mycelium-relay
+   ```
+   Without `MYCELIUM_STORAGE_KEY`, the libp2p **peer ID changes on every deploy** and clients lose bootstrap.
+4. Point Mycelium clients at your relay address (update bootstrap config in the main [Mycelium](https://github.com/SynapticFour/Mycelium) app if needed).
+
+SynapticFour operates `mycelium-relay.fly.dev` as a convenience bootstrap; it is not required for LAN-only mesh use.
+
 ## Architecture role
 
 ```

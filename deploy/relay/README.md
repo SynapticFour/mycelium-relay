@@ -26,7 +26,7 @@ fly volumes create mycelium_relay_data \
 
 Create a deploy token and add **`FLY_API_TOKEN`** under **Settings → Secrets and variables → Actions**.
 
-The workflow **`.github/workflows/deploy.yml`** runs `scripts/deploy-relay-fly.sh` on pushes that touch relay code, `Dockerfile.relay`, or this folder.
+The workflow **`.github/workflows/deploy.yml`** runs on tag **`v*.*.*`** (and manual dispatch). It checks that **`MYCELIUM_STORAGE_KEY`** is set on the Fly app before deploy.
 
 ### 3. Manual deploy (same as CI)
 
