@@ -88,9 +88,9 @@ pub fn encrypt_for(plaintext: &[u8], recipient_public: &PublicKey) -> anyhow::Re
 
     let cipher = ChaCha20Poly1305::new(&key);
     let nonce_bytes = random_nonce_bytes();
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = nonce_from_bytes(&nonce_bytes)?;
     let ciphertext = cipher
-        .encrypt(nonce, plaintext)
+        .encrypt(&nonce, plaintext)
         .map_err(|e| anyhow::anyhow!("encrypt failed: {e}"))?;
 
     let mut out = Vec::with_capacity(32 + 12 + ciphertext.len());
@@ -112,7 +112,7 @@ pub fn decrypt_with(
         <[u8; 32]>::try_from(&ciphertext_blob[..32])
             .map_err(|_| anyhow::anyhow!("invalid ephemeral key length"))?,
     );
-    let nonce = Nonce::from_slice(&ciphertext_blob[32..44]);
+    let nonce = nonce_from_bytes(&ciphertext_blob[32..44])?;
     let ciphertext = &ciphertext_blob[44..];
 
     let shared = recipient.diffie_hellman(&ephemeral_public);
@@ -120,7 +120,7 @@ pub fn decrypt_with(
 
     let cipher = ChaCha20Poly1305::new(&key);
     cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(&nonce, ciphertext)
         .map_err(|_| anyhow::anyhow!("decryption failed – wrong key or tampered message"))
 }
 
@@ -129,9 +129,9 @@ pub fn encrypt_group(plaintext: &[u8], group_key: &[u8; 32]) -> anyhow::Result<V
     let cipher = ChaCha20Poly1305::new_from_slice(group_key)
         .map_err(|e| anyhow::anyhow!("invalid group key: {e}"))?;
     let nonce_bytes = random_nonce_bytes();
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = nonce_from_bytes(&nonce_bytes)?;
     let ciphertext = cipher
-        .encrypt(nonce, plaintext)
+        .encrypt(&nonce, plaintext)
         .map_err(|e| anyhow::anyhow!("group encrypt failed: {e}"))?;
     let mut out = Vec::with_capacity(12 + ciphertext.len());
     out.extend_from_slice(&nonce_bytes);
@@ -143,12 +143,12 @@ pub fn decrypt_group(blob: &[u8], group_key: &[u8; 32]) -> anyhow::Result<Vec<u8
     if blob.len() < 12 {
         anyhow::bail!("group ciphertext too short");
     }
-    let nonce = Nonce::from_slice(&blob[..12]);
+    let nonce = nonce_from_bytes(&blob[..12])?;
     let ciphertext = &blob[12..];
     let cipher = ChaCha20Poly1305::new_from_slice(group_key)
         .map_err(|e| anyhow::anyhow!("invalid group key: {e}"))?;
     cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(&nonce, ciphertext)
         .map_err(|_| anyhow::anyhow!("group decryption failed"))
 }
 
@@ -157,7 +157,18 @@ fn derive_chacha_key(shared_secret: &[u8], info: &[u8]) -> anyhow::Result<Key> {
     let mut raw = [0u8; 32];
     hk.expand(info, &mut raw)
         .map_err(|_| anyhow::anyhow!("HKDF expand failed"))?;
-    Ok(*Key::from_slice(&raw))
+    key_from_bytes(&raw)
+}
+
+fn key_from_bytes(bytes: &[u8; 32]) -> anyhow::Result<Key> {
+    Ok((*bytes).into())
+}
+
+fn nonce_from_bytes(bytes: &[u8]) -> anyhow::Result<Nonce> {
+    let arr: [u8; 12] = bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("nonce must be 12 bytes"))?;
+    Ok(arr.into())
 }
 
 fn random_nonce_bytes() -> [u8; 12] {

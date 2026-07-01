@@ -267,13 +267,14 @@ fn legacy_derive_fallback_master(db_path: &str) -> [u8; KEY_LEN] {
 
 fn encrypt(master: &[u8; KEY_LEN], plaintext: &[u8]) -> anyhow::Result<Vec<u8>> {
     let cipher = ChaCha20Poly1305::new(master.into());
-    let mut nonce = [0u8; NONCE_LEN];
-    rand::thread_rng().fill_bytes(&mut nonce);
+    let mut nonce_bytes = [0u8; NONCE_LEN];
+    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    let nonce: Nonce = nonce_bytes.into();
     let ct = cipher
-        .encrypt(Nonce::from_slice(&nonce), plaintext)
+        .encrypt(&nonce, plaintext)
         .map_err(|e| anyhow::anyhow!("encrypt failed: {e}"))?;
     let mut out = Vec::with_capacity(NONCE_LEN + ct.len());
-    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&nonce_bytes);
     out.extend_from_slice(&ct);
     Ok(out)
 }
@@ -282,10 +283,14 @@ fn decrypt(master: &[u8; KEY_LEN], blob: &[u8]) -> anyhow::Result<Vec<u8>> {
     if blob.len() < NONCE_LEN + 16 {
         anyhow::bail!("ciphertext too short");
     }
-    let (nonce, ct) = blob.split_at(NONCE_LEN);
+    let (nonce_bytes, ct) = blob.split_at(NONCE_LEN);
+    let arr: [u8; 12] = nonce_bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("invalid nonce length"))?;
+    let nonce: Nonce = arr.into();
     let cipher = ChaCha20Poly1305::new(master.into());
     cipher
-        .decrypt(Nonce::from_slice(nonce), ct)
+        .decrypt(&nonce, ct)
         .map_err(|e| anyhow::anyhow!("decrypt failed: {e}"))
 }
 
