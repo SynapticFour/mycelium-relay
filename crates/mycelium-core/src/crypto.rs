@@ -5,9 +5,10 @@
 //! Direkt: X25519 ECDH → HKDF-SHA256 → ChaCha20-Poly1305  
 //! Gruppe: symmetrischer Pre-Shared Key → ChaCha20-Poly1305
 
-use chacha20poly1305::aead::{Aead, AeadCore, KeyInit, OsRng};
+use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use hkdf::Hkdf;
+use rand_core::{OsRng, RngCore};
 use sha2::Sha256;
 use x25519_dalek::{EphemeralSecret, PublicKey, SharedSecret, StaticSecret};
 use zeroize::Zeroize;
@@ -86,14 +87,15 @@ pub fn encrypt_for(plaintext: &[u8], recipient_public: &PublicKey) -> anyhow::Re
     let key = derive_chacha_key(shared.as_bytes(), b"mycelium-direct-v1")?;
 
     let cipher = ChaCha20Poly1305::new(&key);
-    let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let nonce_bytes = random_nonce_bytes();
+    let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher
-        .encrypt(&nonce, plaintext)
+        .encrypt(nonce, plaintext)
         .map_err(|e| anyhow::anyhow!("encrypt failed: {e}"))?;
 
     let mut out = Vec::with_capacity(32 + 12 + ciphertext.len());
     out.extend_from_slice(ephemeral_public.as_bytes());
-    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&nonce_bytes);
     out.extend_from_slice(&ciphertext);
     Ok(out)
 }
@@ -124,14 +126,15 @@ pub fn decrypt_with(
 
 /// Output: `[nonce 12]` + `[ciphertext]`
 pub fn encrypt_group(plaintext: &[u8], group_key: &[u8; 32]) -> anyhow::Result<Vec<u8>> {
-    let key = Key::from_slice(group_key);
-    let cipher = ChaCha20Poly1305::new(key);
-    let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let cipher = ChaCha20Poly1305::new_from_slice(group_key)
+        .map_err(|e| anyhow::anyhow!("invalid group key: {e}"))?;
+    let nonce_bytes = random_nonce_bytes();
+    let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher
-        .encrypt(&nonce, plaintext)
+        .encrypt(nonce, plaintext)
         .map_err(|e| anyhow::anyhow!("group encrypt failed: {e}"))?;
     let mut out = Vec::with_capacity(12 + ciphertext.len());
-    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&nonce_bytes);
     out.extend_from_slice(&ciphertext);
     Ok(out)
 }
@@ -142,8 +145,8 @@ pub fn decrypt_group(blob: &[u8], group_key: &[u8; 32]) -> anyhow::Result<Vec<u8
     }
     let nonce = Nonce::from_slice(&blob[..12]);
     let ciphertext = &blob[12..];
-    let key = Key::from_slice(group_key);
-    let cipher = ChaCha20Poly1305::new(key);
+    let cipher = ChaCha20Poly1305::new_from_slice(group_key)
+        .map_err(|e| anyhow::anyhow!("invalid group key: {e}"))?;
     cipher
         .decrypt(nonce, ciphertext)
         .map_err(|_| anyhow::anyhow!("group decryption failed"))
@@ -155,6 +158,12 @@ fn derive_chacha_key(shared_secret: &[u8], info: &[u8]) -> anyhow::Result<Key> {
     hk.expand(info, &mut raw)
         .map_err(|_| anyhow::anyhow!("HKDF expand failed"))?;
     Ok(*Key::from_slice(&raw))
+}
+
+fn random_nonce_bytes() -> [u8; 12] {
+    let mut nonce = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce);
+    nonce
 }
 
 #[cfg(test)]
